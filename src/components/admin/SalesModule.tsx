@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Calendar, FileText, Package, Loader2, User, Mail, MapPin, Phone } from 'lucide-react';
+import { Calendar, FileText, Package, Loader2, User, Mail, MapPin, Phone, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Enquiry {
@@ -122,9 +122,22 @@ export const SalesModule = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold">Sales & Enquiries</h3>
-        <p className="text-sm text-muted-foreground">View all customer enquiries and rental requests</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold">Sales & Enquiries</h3>
+          <p className="text-sm text-muted-foreground">View all customer enquiries and rental requests</p>
+        </div>
+        <Button
+          onClick={() => {
+            // Try to focus the sales enquiries area if available
+            try {
+              window.dispatchEvent(new CustomEvent('salesTabChange', { detail: 'enquiries' }));
+            } catch (_) {}
+          }}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Enquiries
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -198,7 +211,6 @@ export const SalesModule = () => {
                     <TableHead>Quantity</TableHead>
                     <TableHead>Delivery Location</TableHead>
                     <TableHead>Expected Date</TableHead>
-                    <TableHead>Status</TableHead>
                     <TableHead>Assigned To</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -230,7 +242,6 @@ export const SalesModule = () => {
                           : 'N/A'
                         }
                       </TableCell>
-                      <TableCell>{getStatusBadge(enquiry.status)}</TableCell>
                       <TableCell className="text-sm">
                         {enquiry.assigned_salesperson_name || (
                           <span className="text-muted-foreground italic">Unassigned</span>
