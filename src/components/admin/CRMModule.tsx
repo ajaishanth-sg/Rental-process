@@ -325,14 +325,21 @@ export const CRMModule = () => {
   const fetchLeads = async () => {
     try {
       setLoading(true);
+      console.log('Fetching leads from backend...');
       const data = await crmService.getLeads();
+      console.log('Leads fetched:', data);
       setLeads(data);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch leads',
-        variant: 'destructive',
-      });
+    } catch (error: any) {
+      console.error('Error fetching leads:', error);
+      // Don't show error toast on initial load if backend is not running
+      // This allows the user to still see the UI
+      if (leads.length > 0) {
+        toast({
+          title: 'Error',
+          description: 'Failed to fetch leads. Backend server may not be running.',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -461,7 +468,9 @@ export const CRMModule = () => {
 
     try {
       setLoading(true);
+      console.log('Creating lead:', newLead);
       const result = await crmService.createLead(newLead);
+      console.log('Lead created:', result);
       
       setCreateLeadDialogOpen(false);
       setNewLead({
@@ -490,10 +499,11 @@ export const CRMModule = () => {
 
       // Refresh leads list
       await fetchLeads();
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error creating lead:', error);
       toast({
         title: 'Error',
-        description: 'Failed to create lead',
+        description: error.message || 'Failed to create lead. Make sure the backend server is running on port 8000.',
         variant: 'destructive',
       });
     } finally {
@@ -1166,11 +1176,11 @@ export const CRMModule = () => {
                   </div>
                 </div>
                 <div className="flex justify-end gap-2 mt-4">
-                  <Button variant="outline" onClick={() => setCreateLeadDialogOpen(false)}>
+                  <Button variant="outline" onClick={() => setCreateLeadDialogOpen(false)} disabled={loading}>
                     Cancel
                   </Button>
-                  <Button onClick={handleCreateLead}>
-                    Create Lead
+                  <Button onClick={handleCreateLead} disabled={loading}>
+                    {loading ? 'Creating...' : 'Create Lead'}
                   </Button>
                 </div>
               </DialogContent>
