@@ -57,13 +57,13 @@ const AdminDashboard = () => {
   useEffect(() => {
     // Check for hash in URL to set active tab
     const hash = window.location.hash.replace('#', '');
-    if (hash && ['overview', 'crm', 'equipment', 'customers', 'users', 'events', 'masterdata', 'contracts', 'contract-oversight', 'inventory', 'finance', 'invoices', 'workorders', 'dispatch', 'reports'].includes(hash)) {
+    if (hash && ['overview', 'crm', 'equipment', 'customers', 'users', 'events', 'masterdata', 'contracts', 'contract-oversight', 'inventory', 'finance', 'invoices', 'workorders', 'dispatch', 'reports', 'settings'].includes(hash)) {
       setActiveTab(hash);
     }
 
     // Listen for custom tab change events from sidebar
     const handleTabChange = (event: any) => {
-      if (event.detail && ['overview', 'crm', 'equipment', 'customers', 'users', 'events', 'masterdata', 'contracts', 'contract-oversight', 'inventory', 'finance', 'invoices', 'workorders', 'dispatch', 'reports'].includes(event.detail)) {
+      if (event.detail && ['overview', 'crm', 'equipment', 'customers', 'users', 'events', 'masterdata', 'contracts', 'contract-oversight', 'inventory', 'finance', 'invoices', 'workorders', 'dispatch', 'reports', 'settings'].includes(event.detail)) {
         setActiveTab(event.detail);
       }
     };
@@ -404,6 +404,7 @@ const AdminDashboard = () => {
         {activeTab === 'workorders' && <WorkOrdersModule />}
         {activeTab === 'dispatch' && <DispatchModule />}
         {activeTab === 'reports' && <ReportsModule />}
+        {activeTab === 'settings' && <SettingsModule />}
       </div>
     </DashboardLayout>
   );
