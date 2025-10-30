@@ -44,6 +44,59 @@ class FeedbackSubmit(BaseModel):
     score: int
     comments: Optional[str] = None
 
+# Leads models
+class Lead(BaseModel):
+    salutation: str = "Mr"
+    firstName: str
+    lastName: Optional[str] = None
+    email: str
+    mobile: Optional[str] = None
+    organization: Optional[str] = None
+    website: Optional[str] = None
+    jobTitle: Optional[str] = None
+    industry: Optional[str] = None
+    source: Optional[str] = None
+    status: str = "New"
+    gender: Optional[str] = "Male"
+    noOfEmployees: Optional[str] = None
+    annualRevenue: Optional[float] = 0
+    territory: Optional[str] = None
+    leadOwner: str = "Shariq Ansari"
+
+class Email(BaseModel):
+    leadId: str
+    to: str
+    cc: Optional[str] = None
+    bcc: Optional[str] = None
+    subject: str
+    body: str
+
+class Call(BaseModel):
+    leadId: str
+    duration: int
+    type: str = "Outbound Call"
+
+class Task(BaseModel):
+    leadId: str
+    title: str
+    description: Optional[str] = None
+    status: str = "Backlog"
+    assignedTo: str
+    dueDate: Optional[str] = None
+    priority: str = "Low"
+
+class Note(BaseModel):
+    leadId: str
+    title: str
+    content: str
+
+class ConvertToDeal(BaseModel):
+    leadId: str
+    useExistingOrg: bool = True
+    organizationId: Optional[str] = None
+    useExistingContact: bool = False
+    contactId: Optional[str] = None
+
 @router.get("/customers")
 async def get_crm_customers(current_user: dict = Depends(get_current_user)):
     """Get all customers with CRM data including documents and pipeline info"""
@@ -524,4 +577,566 @@ async def update_customer_crm(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating customer: {str(e)}")
+
+# ============= LEADS MANAGEMENT =============
+
+@router.get("/leads")
+async def get_leads(current_user: dict = Depends(get_current_user)):
+    """Get all leads"""
+    try:
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Only admin can access leads")
+        
+        db = get_database()
+        
+        leads_cursor = db.leads.find({})
+        leads_raw = await leads_cursor.to_list(length=None)
+        
+        leads = []
+        for lead in leads_raw:
+            lead_copy = lead.copy()
+            lead_copy["id"] = str(lead_copy.pop("_id"))
+            
+            # Get activities count
+            activities_count = len(lead_copy.get("activities", []))
+            lead_copy["activitiesCount"] = activities_count
+            
+            leads.append(lead_copy)
+        
+        return leads
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching leads: {str(e)}")
+
+@router.get("/leads/{lead_id}")
+async def get_lead(lead_id: str, current_user: dict = Depends(get_current_user)):
+    """Get a specific lead with all details"""
+    try:
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Only admin can access leads")
+        
+        db = get_database()
+        
+        lead = await db.leads.find_one({"lead_id": lead_id})
+        if not lead:
+            raise HTTPException(status_code=404, detail="Lead not found")
+        
+        lead_copy = lead.copy()
+        lead_copy["id"] = str(lead_copy.pop("_id"))
+        
+        return lead_copy
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching lead: {str(e)}")
+
+@router.post("/leads")
+async def create_lead(lead_data: Lead, current_user: dict = Depends(get_current_user)):
+    """Create a new lead"""
+    try:
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Only admin can create leads")
+        
+        db = get_database()
+        
+        # Generate lead ID
+        lead_count = await db.leads.count_documents({})
+        lead_id = f"LEAD-{str(lead_count + 1).zfill(3)}"
+        
+        lead = {
+            "lead_id": lead_id,
+            **lead_data.dict(),
+            "createdAt": datetime.now().isoformat(),
+            "createdBy": current_user["id"],
+            "updatedAt": datetime.now().isoformat(),
+            "activities": [
+                {
+                    "type": "created",
+                    "description": "Lead created",
+                    "by": current_user.get("name", lead_data.leadOwner),
+                    "timestamp": datetime.now().isoformat()
+                }
+            ]
+        }
+        
+        result = await db.leads.insert_one(lead)
+        
+        return {
+            "message": "Lead created successfully",
+            "lead_id": lead_id,
+            "id": str(result.inserted_id)
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating lead: {str(e)}")
+
+@router.put("/leads/{lead_id}")
+async def update_lead(lead_id: str, lead_data: Lead, current_user: dict = Depends(get_current_user)):
+    """Update a lead"""
+    try:
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Only admin can update leads")
+        
+        db = get_database()
+        
+        update_data = lead_data.dict(exclude_unset=True)
+        update_data["updatedAt"] = datetime.now().isoformat()
+        
+        result = await db.leads.update_one(
+            {"lead_id": lead_id},
+            {"$set": update_data}
+        )
+        
+        if result.modified_count == 0:
+            raise HTTPException(status_code=404, detail="Lead not found or no changes made")
+        
+        return {"message": "Lead updated successfully"}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating lead: {str(e)}")
+
+@router.put("/leads/{lead_id}/status")
+async def update_lead_status(lead_id: str, status: str, current_user: dict = Depends(get_current_user)):
+    """Update lead status"""
+    try:
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Only admin can update lead status")
+        
+        db = get_database()
+        
+        # Create activity
+        activity = {
+            "type": "status_change",
+            "description": f"Status updated to {status}",
+            "by": current_user.get("name", "Admin"),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        result = await db.leads.update_one(
+            {"lead_id": lead_id},
+            {
+                "$set": {
+                    "status": status,
+                    "updatedAt": datetime.now().isoformat()
+                },
+                "$push": {"activities": activity}
+            }
+        )
+        
+        if result.modified_count == 0:
+            raise HTTPException(status_code=404, detail="Lead not found")
+        
+        return {"message": f"Lead status updated to {status}"}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating lead status: {str(e)}")
+
+@router.delete("/leads/{lead_id}")
+async def delete_lead(lead_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a lead"""
+    try:
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Only admin can delete leads")
+        
+        db = get_database()
+        
+        result = await db.leads.delete_one({"lead_id": lead_id})
+        
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Lead not found")
+        
+        # Also delete related emails, calls, tasks, notes
+        await db.lead_emails.delete_many({"lead_id": lead_id})
+        await db.lead_calls.delete_many({"lead_id": lead_id})
+        await db.lead_tasks.delete_many({"lead_id": lead_id})
+        await db.lead_notes.delete_many({"lead_id": lead_id})
+        
+        return {"message": "Lead and related data deleted successfully"}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting lead: {str(e)}")
+
+# ============= EMAILS =============
+
+@router.get("/leads/{lead_id}/emails")
+async def get_lead_emails(lead_id: str, current_user: dict = Depends(get_current_user)):
+    """Get all emails for a lead"""
+    try:
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Only admin can access emails")
+        
+        db = get_database()
+        
+        emails_cursor = db.lead_emails.find({"lead_id": lead_id}).sort("timestamp", -1)
+        emails = await emails_cursor.to_list(length=None)
+        
+        for email in emails:
+            email["id"] = str(email.pop("_id"))
+        
+        return emails
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching emails: {str(e)}")
+
+@router.post("/leads/{lead_id}/emails")
+async def send_email(email_data: Email, current_user: dict = Depends(get_current_user)):
+    """Send an email to a lead"""
+    try:
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Only admin can send emails")
+        
+        db = get_database()
+        
+        email = {
+            "lead_id": email_data.leadId,
+            "from": current_user.get("email", "admin@company.com"),
+            "to": email_data.to,
+            "cc": email_data.cc,
+            "bcc": email_data.bcc,
+            "subject": email_data.subject,
+            "body": email_data.body,
+            "timestamp": datetime.now().isoformat(),
+            "status": "sent",
+            "sentBy": current_user.get("name", "Admin")
+        }
+        
+        result = await db.lead_emails.insert_one(email)
+        
+        # Add activity to lead
+        activity = {
+            "type": "email",
+            "description": f"Email sent: {email_data.subject}",
+            "by": current_user.get("name", "Admin"),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        await db.leads.update_one(
+            {"lead_id": email_data.leadId},
+            {
+                "$push": {"activities": activity},
+                "$set": {"updatedAt": datetime.now().isoformat()}
+            }
+        )
+        
+        return {
+            "message": "Email sent successfully",
+            "id": str(result.inserted_id)
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error sending email: {str(e)}")
+
+# ============= CALLS =============
+
+@router.get("/leads/{lead_id}/calls")
+async def get_lead_calls(lead_id: str, current_user: dict = Depends(get_current_user)):
+    """Get all calls for a lead"""
+    try:
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Only admin can access calls")
+        
+        db = get_database()
+        
+        calls_cursor = db.lead_calls.find({"lead_id": lead_id}).sort("timestamp", -1)
+        calls = await calls_cursor.to_list(length=None)
+        
+        for call in calls:
+            call["id"] = str(call.pop("_id"))
+        
+        return calls
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching calls: {str(e)}")
+
+@router.post("/leads/{lead_id}/calls")
+async def log_call(call_data: Call, current_user: dict = Depends(get_current_user)):
+    """Log a call with a lead"""
+    try:
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Only admin can log calls")
+        
+        db = get_database()
+        
+        # Get lead details
+        lead = await db.leads.find_one({"lead_id": call_data.leadId})
+        if not lead:
+            raise HTTPException(status_code=404, detail="Lead not found")
+        
+        call = {
+            "lead_id": call_data.leadId,
+            "type": call_data.type,
+            "duration": call_data.duration,
+            "from": current_user.get("name", "Admin"),
+            "to": f"{lead.get('firstName', '')} {lead.get('lastName', '')}".strip(),
+            "phone": lead.get("mobile", ""),
+            "timestamp": datetime.now().isoformat(),
+            "status": "completed",
+            "loggedBy": current_user.get("name", "Admin")
+        }
+        
+        result = await db.lead_calls.insert_one(call)
+        
+        # Add activity to lead
+        mins = call_data.duration // 60
+        secs = call_data.duration % 60
+        activity = {
+            "type": "call",
+            "description": f"Call with {lead.get('firstName', '')} {lead.get('lastName', '')} - Duration: {mins}m {secs}s",
+            "by": current_user.get("name", "Admin"),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        await db.leads.update_one(
+            {"lead_id": call_data.leadId},
+            {
+                "$push": {"activities": activity},
+                "$set": {"updatedAt": datetime.now().isoformat()}
+            }
+        )
+        
+        return {
+            "message": "Call logged successfully",
+            "id": str(result.inserted_id)
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error logging call: {str(e)}")
+
+# ============= TASKS =============
+
+@router.get("/leads/{lead_id}/tasks")
+async def get_lead_tasks(lead_id: str, current_user: dict = Depends(get_current_user)):
+    """Get all tasks for a lead"""
+    try:
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Only admin can access tasks")
+        
+        db = get_database()
+        
+        tasks_cursor = db.lead_tasks.find({"lead_id": lead_id}).sort("createdAt", -1)
+        tasks = await tasks_cursor.to_list(length=None)
+        
+        for task in tasks:
+            task["id"] = str(task.pop("_id"))
+        
+        return tasks
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching tasks: {str(e)}")
+
+@router.post("/leads/{lead_id}/tasks")
+async def create_task(task_data: Task, current_user: dict = Depends(get_current_user)):
+    """Create a task for a lead"""
+    try:
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Only admin can create tasks")
+        
+        db = get_database()
+        
+        task = {
+            "lead_id": task_data.leadId,
+            "title": task_data.title,
+            "description": task_data.description,
+            "status": task_data.status,
+            "assignedTo": task_data.assignedTo,
+            "dueDate": task_data.dueDate,
+            "priority": task_data.priority,
+            "createdAt": datetime.now().isoformat(),
+            "createdBy": current_user.get("name", "Admin")
+        }
+        
+        result = await db.lead_tasks.insert_one(task)
+        
+        # Add activity to lead
+        activity = {
+            "type": "task",
+            "description": f"Task created: {task_data.title}",
+            "by": current_user.get("name", "Admin"),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        await db.leads.update_one(
+            {"lead_id": task_data.leadId},
+            {
+                "$push": {"activities": activity},
+                "$set": {"updatedAt": datetime.now().isoformat()}
+            }
+        )
+        
+        return {
+            "message": "Task created successfully",
+            "id": str(result.inserted_id)
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating task: {str(e)}")
+
+@router.put("/tasks/{task_id}")
+async def update_task(task_id: str, task_data: Task, current_user: dict = Depends(get_current_user)):
+    """Update a task"""
+    try:
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Only admin can update tasks")
+        
+        db = get_database()
+        
+        update_data = task_data.dict(exclude_unset=True, exclude={"leadId"})
+        update_data["updatedAt"] = datetime.now().isoformat()
+        
+        result = await db.lead_tasks.update_one(
+            {"_id": task_id},
+            {"$set": update_data}
+        )
+        
+        if result.modified_count == 0:
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        return {"message": "Task updated successfully"}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating task: {str(e)}")
+
+# ============= NOTES =============
+
+@router.get("/leads/{lead_id}/notes")
+async def get_lead_notes(lead_id: str, current_user: dict = Depends(get_current_user)):
+    """Get all notes for a lead"""
+    try:
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Only admin can access notes")
+        
+        db = get_database()
+        
+        notes_cursor = db.lead_notes.find({"lead_id": lead_id}).sort("createdAt", -1)
+        notes = await notes_cursor.to_list(length=None)
+        
+        for note in notes:
+            note["id"] = str(note.pop("_id"))
+        
+        return notes
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching notes: {str(e)}")
+
+@router.post("/leads/{lead_id}/notes")
+async def create_note(note_data: Note, current_user: dict = Depends(get_current_user)):
+    """Create a note for a lead"""
+    try:
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Only admin can create notes")
+        
+        db = get_database()
+        
+        note = {
+            "lead_id": note_data.leadId,
+            "title": note_data.title,
+            "content": note_data.content,
+            "createdAt": datetime.now().isoformat(),
+            "createdBy": current_user.get("name", "Admin")
+        }
+        
+        result = await db.lead_notes.insert_one(note)
+        
+        # Add activity to lead
+        activity = {
+            "type": "note",
+            "description": f"Note added: {note_data.title}",
+            "by": current_user.get("name", "Admin"),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        await db.leads.update_one(
+            {"lead_id": note_data.leadId},
+            {
+                "$push": {"activities": activity},
+                "$set": {"updatedAt": datetime.now().isoformat()}
+            }
+        )
+        
+        return {
+            "message": "Note created successfully",
+            "id": str(result.inserted_id)
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating note: {str(e)}")
+
+# ============= CONVERT TO DEAL =============
+
+@router.post("/leads/{lead_id}/convert-to-deal")
+async def convert_to_deal(convert_data: ConvertToDeal, current_user: dict = Depends(get_current_user)):
+    """Convert a lead to a deal"""
+    try:
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Only admin can convert leads to deals")
+        
+        db = get_database()
+        
+        # Get lead
+        lead = await db.leads.find_one({"lead_id": convert_data.leadId})
+        if not lead:
+            raise HTTPException(status_code=404, detail="Lead not found")
+        
+        # Update lead status to Qualified
+        await db.leads.update_one(
+            {"lead_id": convert_data.leadId},
+            {
+                "$set": {
+                    "status": "Qualified",
+                    "convertedToDeal": True,
+                    "convertedAt": datetime.now().isoformat(),
+                    "updatedAt": datetime.now().isoformat()
+                },
+                "$push": {
+                    "activities": {
+                        "type": "conversion",
+                        "description": "Converted to deal",
+                        "by": current_user.get("name", "Admin"),
+                        "timestamp": datetime.now().isoformat()
+                    }
+                }
+            }
+        )
+        
+        # TODO: Create actual deal record in deals collection
+        # This would involve creating organization and contact if needed
+        
+        return {
+            "message": "Lead converted to deal successfully",
+            "lead_id": convert_data.leadId
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error converting lead to deal: {str(e)}")
 

@@ -51,6 +51,7 @@ import {
   Circle
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
+import * as crmService from '@/services/crmService';
 
 // Mock data
 const customersData = [
@@ -234,127 +235,11 @@ const salesPerformanceData = [
   { month: 'Oct 2024', enquiries: 32, quotations: 24, contracts: 16, revenue: 240000, conversionRate: 66.7 }
 ];
 
-// Leads data
-const leadsData = [
-  {
-    id: 'LEAD-001',
-    salutation: 'Mr',
-    firstName: 'Marcus',
-    lastName: 'Brown',
-    email: 'marcusb@tesla.com',
-    mobile: '+97166980887',
-    organization: 'Tesla India',
-    website: 'www.tesla.com',
-    jobTitle: 'Procurement Manager',
-    industry: 'Automotive',
-    source: 'LinkedIn',
-    status: 'New',
-    assignedTo: 'Shariq Ansari',
-    gender: 'Male',
-    noOfEmployees: '10000+',
-    annualRevenue: 50000000,
-    territory: 'India',
-    createdAt: '2025-01-20',
-    leadOwner: 'Shariq Ansari',
-    activities: [
-      { type: 'created', description: 'Lead created', by: 'Shariq Ansari', timestamp: '2025-01-20 10:00:00' }
-    ]
-  },
-  {
-    id: 'LEAD-002',
-    salutation: 'Mr',
-    firstName: 'Jabari',
-    lastName: 'Beard',
-    email: 'jabari.beard@outlook.com',
-    mobile: '+919867959525',
-    organization: 'Shriram Finance',
-    website: 'www.shriramfinance.in',
-    jobTitle: 'Product Manager',
-    industry: 'Finance',
-    source: 'LinkedIn',
-    status: 'New',
-    assignedTo: 'Shariq Ansari',
-    gender: 'Male',
-    noOfEmployees: '1000-5000',
-    annualRevenue: 5000000,
-    territory: 'India',
-    createdAt: '2025-01-19',
-    leadOwner: 'Shariq Ansari',
-    activities: []
-  },
-  {
-    id: 'LEAD-003',
-    salutation: 'Mrs',
-    firstName: 'Marie',
-    lastName: 'Everett',
-    email: 'marie.everett@outloo.com',
-    mobile: '+919867959492',
-    organization: 'TVS Motor Company',
-    website: 'www.tvsmotor.com',
-    jobTitle: 'Founder',
-    industry: 'Automotive',
-    source: 'Facebook',
-    status: 'New',
-    assignedTo: 'Asif Mula',
-    gender: 'Female',
-    noOfEmployees: '5000-10000',
-    annualRevenue: 10000000,
-    territory: 'India',
-    createdAt: '2025-01-18',
-    leadOwner: 'Asif Mula',
-    activities: []
-  },
-  {
-    id: 'LEAD-004',
-    salutation: 'Ms',
-    firstName: 'Bessie',
-    lastName: 'Cooper',
-    email: 'bessiecooper@merce.com',
-    mobile: '+1 (480) 555-2998',
-    organization: 'Mercedes Benz',
-    website: 'www.mercedes-benz.com',
-    jobTitle: 'Admin',
-    industry: 'Automotive',
-    source: 'Advertisement',
-    status: 'Qualified',
-    assignedTo: 'Ankush Nehe',
-    gender: 'Female',
-    noOfEmployees: '50000+',
-    annualRevenue: 80000000,
-    territory: 'USA',
-    createdAt: '2025-01-15',
-    leadOwner: 'Ankush Nehe',
-    activities: []
-  },
-  {
-    id: 'LEAD-005',
-    salutation: 'Mr',
-    firstName: 'Kobe',
-    lastName: 'Barron',
-    email: 'kobe.barron@outlook.com',
-    mobile: '+919867959495',
-    organization: 'Ultratech Cement',
-    website: 'www.ultratechcement.com',
-    jobTitle: 'Product Manager',
-    industry: 'Construction',
-    source: 'Others',
-    status: 'New',
-    assignedTo: 'Shariq Ansari',
-    gender: 'Male',
-    noOfEmployees: '10000+',
-    annualRevenue: 15000000,
-    territory: 'India',
-    createdAt: '2025-01-14',
-    leadOwner: 'Shariq Ansari',
-    activities: []
-  }
-];
-
 export const CRMModule = () => {
   const [customers, setCustomers] = useState(customersData);
   const [pipeline, setPipeline] = useState(pipelineData);
   const [salesPerformance, setSalesPerformance] = useState(salesPerformanceData);
-  const [leads, setLeads] = useState(leadsData);
+  const [leads, setLeads] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [selectedLead, setSelectedLead] = useState<any>(null);
@@ -421,8 +306,54 @@ export const CRMModule = () => {
   const [leadEmails, setLeadEmails] = useState<any[]>([]);
   const [leadTasks, setLeadTasks] = useState<any[]>([]);
   const [leadNotes, setLeadNotes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const { toast } = useToast();
+
+  // Fetch leads on component mount
+  useEffect(() => {
+    fetchLeads();
+  }, []);
+
+  // Fetch lead details when selected lead changes
+  useEffect(() => {
+    if (selectedLead && selectedLead.lead_id) {
+      fetchLeadDetails(selectedLead.lead_id);
+    }
+  }, [selectedLead?.lead_id]);
+
+  const fetchLeads = async () => {
+    try {
+      setLoading(true);
+      const data = await crmService.getLeads();
+      setLeads(data);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch leads',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchLeadDetails = async (leadId: string) => {
+    try {
+      const [emails, calls, tasks, notes] = await Promise.all([
+        crmService.getLeadEmails(leadId),
+        crmService.getLeadCalls(leadId),
+        crmService.getLeadTasks(leadId),
+        crmService.getLeadNotes(leadId),
+      ]);
+      setLeadEmails(emails);
+      setLeadCalls(calls);
+      setLeadTasks(tasks);
+      setLeadNotes(notes);
+    } catch (error) {
+      console.error('Error fetching lead details:', error);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -518,7 +449,7 @@ export const CRMModule = () => {
     lead.id.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleCreateLead = () => {
+  const handleCreateLead = async () => {
     if (!newLead.firstName || !newLead.email) {
       toast({
         title: 'Error',
@@ -528,47 +459,46 @@ export const CRMModule = () => {
       return;
     }
 
-    const leadCount = leads.length;
-    const lead = {
-      ...newLead,
-      id: `LEAD-${String(leadCount + 1).padStart(3, '0')}`,
-      createdAt: new Date().toISOString().split('T')[0],
-      assignedTo: newLead.leadOwner,
-      activities: [
-        {
-          type: 'created',
-          description: 'Lead created',
-          by: newLead.leadOwner,
-          timestamp: new Date().toLocaleString()
-        }
-      ]
-    };
+    try {
+      setLoading(true);
+      const result = await crmService.createLead(newLead);
+      
+      setCreateLeadDialogOpen(false);
+      setNewLead({
+        salutation: 'Mr',
+        firstName: '',
+        lastName: '',
+        email: '',
+        mobile: '',
+        organization: '',
+        website: '',
+        jobTitle: '',
+        industry: '',
+        source: '',
+        status: 'New',
+        gender: 'Male',
+        noOfEmployees: '',
+        annualRevenue: 0,
+        territory: '',
+        leadOwner: 'Shariq Ansari'
+      });
 
-    setLeads([...leads, lead]);
-    setCreateLeadDialogOpen(false);
-    setNewLead({
-      salutation: 'Mr',
-      firstName: '',
-      lastName: '',
-      email: '',
-      mobile: '',
-      organization: '',
-      website: '',
-      jobTitle: '',
-      industry: '',
-      source: '',
-      status: 'New',
-      gender: 'Male',
-      noOfEmployees: '',
-      annualRevenue: 0,
-      territory: '',
-      leadOwner: 'Shariq Ansari'
-    });
+      toast({
+        title: '✅ Lead Created',
+        description: `${newLead.firstName} ${newLead.lastName} has been added to leads.`,
+      });
 
-    toast({
-      title: '✅ Lead Created',
-      description: `${lead.firstName} ${lead.lastName} has been added to leads.`,
-    });
+      // Refresh leads list
+      await fetchLeads();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to create lead',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleViewLeadDetails = (lead: any) => {
@@ -576,15 +506,30 @@ export const CRMModule = () => {
     setLeadDetailsDialogOpen(true);
   };
 
-  const handleUpdateLeadStatus = (leadId: string, newStatus: string) => {
-    setLeads(leads.map(lead =>
-      lead.id === leadId ? { ...lead, status: newStatus } : lead
-    ));
+  const handleUpdateLeadStatus = async (leadId: string, newStatus: string) => {
+    try {
+      await crmService.updateLeadStatus(leadId, newStatus);
 
-    toast({
-      title: '✅ Status Updated',
-      description: `Lead status updated to ${newStatus}.`,
-    });
+      toast({
+        title: '✅ Status Updated',
+        description: `Lead status updated to ${newStatus}.`,
+      });
+
+      // Refresh leads
+      await fetchLeads();
+      
+      // Refresh selected lead details
+      if (selectedLead && selectedLead.lead_id === leadId) {
+        const updatedLead = await crmService.getLead(leadId);
+        setSelectedLead(updatedLead);
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update lead status',
+        variant: 'destructive',
+      });
+    }
   };
 
   const getLeadStatusBadge = (status: string) => {
@@ -621,53 +566,40 @@ export const CRMModule = () => {
     });
   };
 
-  const handleEndCall = () => {
+  const handleEndCall = async () => {
     if (!selectedLead) return;
     
-    const callLog = {
-      id: `CALL-${Date.now()}`,
-      type: 'Outbound Call',
-      duration: callDuration,
-      from: 'Shariq Ansari',
-      to: `${selectedLead.firstName} ${selectedLead.lastName}`,
-      phone: selectedLead.mobile,
-      timestamp: new Date().toLocaleString(),
-      status: 'completed'
-    };
+    try {
+      await crmService.logCall({
+        leadId: selectedLead.lead_id,
+        duration: callDuration,
+        type: 'Outbound Call'
+      });
 
-    setLeadCalls([callLog, ...leadCalls]);
-    setIsCallActive(false);
-    setCallDialogOpen(false);
-    setCallDuration(0);
+      setIsCallActive(false);
+      setCallDialogOpen(false);
+      setCallDuration(0);
 
-    // Update lead activities
-    const updatedLeads = leads.map(lead =>
-      lead.id === selectedLead.id
-        ? {
-            ...lead,
-            activities: [
-              {
-                type: 'call',
-                description: `Call with ${lead.firstName} ${lead.lastName} - Duration: ${Math.floor(callDuration / 60)}m ${callDuration % 60}s`,
-                by: 'Shariq Ansari',
-                timestamp: new Date().toLocaleString()
-              },
-              ...(lead.activities || [])
-            ]
-          }
-        : lead
-    );
-    setLeads(updatedLeads);
-    setSelectedLead(updatedLeads.find(l => l.id === selectedLead.id));
+      toast({
+        title: '✅ Call Ended',
+        description: `Call duration: ${Math.floor(callDuration / 60)}m ${callDuration % 60}s`,
+      });
 
-    toast({
-      title: '✅ Call Ended',
-      description: `Call duration: ${Math.floor(callDuration / 60)}m ${callDuration % 60}s`,
-    });
+      // Refresh lead details
+      await fetchLeadDetails(selectedLead.lead_id);
+      const updatedLead = await crmService.getLead(selectedLead.lead_id);
+      setSelectedLead(updatedLead);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to log call',
+        variant: 'destructive',
+      });
+    }
   };
 
   // Email functionality
-  const handleSendEmail = () => {
+  const handleSendEmail = async () => {
     if (!selectedLead || !emailData.subject) {
       toast({
         title: 'Error',
@@ -677,50 +609,39 @@ export const CRMModule = () => {
       return;
     }
 
-    const email = {
-      id: `EMAIL-${Date.now()}`,
-      from: 'Shariq Ansari',
-      to: emailData.to || selectedLead.email,
-      cc: emailData.cc,
-      bcc: emailData.bcc,
-      subject: emailData.subject,
-      body: emailData.body,
-      timestamp: new Date().toLocaleString(),
-      status: 'sent'
-    };
+    try {
+      await crmService.sendEmail({
+        leadId: selectedLead.lead_id,
+        to: emailData.to || selectedLead.email,
+        cc: emailData.cc,
+        bcc: emailData.bcc,
+        subject: emailData.subject,
+        body: emailData.body,
+      });
 
-    setLeadEmails([email, ...leadEmails]);
-    setEmailComposerOpen(false);
-    setEmailData({ to: '', cc: '', bcc: '', subject: '', body: '' });
+      setEmailComposerOpen(false);
+      setEmailData({ to: '', cc: '', bcc: '', subject: '', body: '' });
 
-    // Update lead activities
-    const updatedLeads = leads.map(lead =>
-      lead.id === selectedLead.id
-        ? {
-            ...lead,
-            activities: [
-              {
-                type: 'email',
-                description: `Email sent: ${emailData.subject}`,
-                by: 'Shariq Ansari',
-                timestamp: new Date().toLocaleString()
-              },
-              ...(lead.activities || [])
-            ]
-          }
-        : lead
-    );
-    setLeads(updatedLeads);
-    setSelectedLead(updatedLeads.find(l => l.id === selectedLead.id));
+      toast({
+        title: '✅ Email Sent',
+        description: `Email sent to ${selectedLead.firstName} ${selectedLead.lastName}`,
+      });
 
-    toast({
-      title: '✅ Email Sent',
-      description: `Email sent to ${selectedLead.firstName} ${selectedLead.lastName}`,
-    });
+      // Refresh lead details
+      await fetchLeadDetails(selectedLead.lead_id);
+      const updatedLead = await crmService.getLead(selectedLead.lead_id);
+      setSelectedLead(updatedLead);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to send email',
+        variant: 'destructive',
+      });
+    }
   };
 
   // Task functionality
-  const handleCreateTask = () => {
+  const handleCreateTask = async () => {
     if (!selectedLead || !taskData.title) {
       toast({
         title: 'Error',
@@ -730,51 +651,40 @@ export const CRMModule = () => {
       return;
     }
 
-    const task = {
-      id: `TASK-${Date.now()}`,
-      title: taskData.title,
-      description: taskData.description,
-      status: taskData.status,
-      assignedTo: taskData.assignedTo,
-      dueDate: taskData.dueDate,
-      priority: taskData.priority,
-      leadId: selectedLead.id,
-      createdAt: new Date().toLocaleString(),
-      createdBy: 'Shariq Ansari'
-    };
+    try {
+      await crmService.createTask({
+        leadId: selectedLead.lead_id,
+        title: taskData.title,
+        description: taskData.description,
+        status: taskData.status,
+        assignedTo: taskData.assignedTo,
+        dueDate: taskData.dueDate,
+        priority: taskData.priority,
+      });
 
-    setLeadTasks([task, ...leadTasks]);
-    setTaskDialogOpen(false);
-    setTaskData({ title: '', description: '', status: 'Backlog', assignedTo: 'Shariq Ansari', dueDate: '', priority: 'Low' });
+      setTaskDialogOpen(false);
+      setTaskData({ title: '', description: '', status: 'Backlog', assignedTo: 'Shariq Ansari', dueDate: '', priority: 'Low' });
 
-    // Update lead activities
-    const updatedLeads = leads.map(lead =>
-      lead.id === selectedLead.id
-        ? {
-            ...lead,
-            activities: [
-              {
-                type: 'task',
-                description: `Task created: ${task.title}`,
-                by: 'Shariq Ansari',
-                timestamp: new Date().toLocaleString()
-              },
-              ...(lead.activities || [])
-            ]
-          }
-        : lead
-    );
-    setLeads(updatedLeads);
-    setSelectedLead(updatedLeads.find(l => l.id === selectedLead.id));
+      toast({
+        title: '✅ Task Created',
+        description: taskData.title,
+      });
 
-    toast({
-      title: '✅ Task Created',
-      description: taskData.title,
-    });
+      // Refresh lead details
+      await fetchLeadDetails(selectedLead.lead_id);
+      const updatedLead = await crmService.getLead(selectedLead.lead_id);
+      setSelectedLead(updatedLead);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to create task',
+        variant: 'destructive',
+      });
+    }
   };
 
   // Note functionality
-  const handleCreateNote = () => {
+  const handleCreateNote = async () => {
     if (!selectedLead || !noteData.title) {
       toast({
         title: 'Error',
@@ -784,68 +694,62 @@ export const CRMModule = () => {
       return;
     }
 
-    const note = {
-      id: `NOTE-${Date.now()}`,
-      title: noteData.title,
-      content: noteData.content,
-      leadId: selectedLead.id,
-      createdAt: new Date().toLocaleString(),
-      createdBy: 'Shariq Ansari'
-    };
+    try {
+      await crmService.createNote({
+        leadId: selectedLead.lead_id,
+        title: noteData.title,
+        content: noteData.content,
+      });
 
-    setLeadNotes([note, ...leadNotes]);
-    setNoteDialogOpen(false);
-    setNoteData({ title: '', content: '' });
+      setNoteDialogOpen(false);
+      setNoteData({ title: '', content: '' });
 
-    // Update lead activities
-    const updatedLeads = leads.map(lead =>
-      lead.id === selectedLead.id
-        ? {
-            ...lead,
-            activities: [
-              {
-                type: 'note',
-                description: `Note added: ${note.title}`,
-                by: 'Shariq Ansari',
-                timestamp: new Date().toLocaleString()
-              },
-              ...(lead.activities || [])
-            ]
-          }
-        : lead
-    );
-    setLeads(updatedLeads);
-    setSelectedLead(updatedLeads.find(l => l.id === selectedLead.id));
+      toast({
+        title: '✅ Note Created',
+        description: noteData.title,
+      });
 
-    toast({
-      title: '✅ Note Created',
-      description: noteData.title,
-    });
+      // Refresh lead details
+      await fetchLeadDetails(selectedLead.lead_id);
+      const updatedLead = await crmService.getLead(selectedLead.lead_id);
+      setSelectedLead(updatedLead);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to create note',
+        variant: 'destructive',
+      });
+    }
   };
 
   // Convert to Deal functionality
-  const handleConvertToDeal = () => {
+  const handleConvertToDeal = async () => {
     if (!selectedLead) return;
 
-    toast({
-      title: '✅ Lead Converted to Deal',
-      description: `${selectedLead.firstName} ${selectedLead.lastName} has been converted to a deal.`,
-    });
+    try {
+      await crmService.convertToDeal({
+        leadId: selectedLead.lead_id,
+        useExistingOrg: chooseExistingOrg,
+        useExistingContact: chooseExistingContact,
+      });
 
-    // Update lead status
-    const updatedLeads = leads.map(lead =>
-      lead.id === selectedLead.id
-        ? {
-            ...lead,
-            status: 'Qualified',
-            convertedToDeal: true,
-            convertedAt: new Date().toLocaleString()
-          }
-        : lead
-    );
-    setLeads(updatedLeads);
-    setConvertToDealDialogOpen(false);
-    setLeadDetailsDialogOpen(false);
+      toast({
+        title: '✅ Lead Converted to Deal',
+        description: `${selectedLead.firstName} ${selectedLead.lastName} has been converted to a deal.`,
+      });
+
+      setConvertToDealDialogOpen(false);
+      setLeadDetailsDialogOpen(false);
+
+      // Refresh leads
+      await fetchLeads();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to convert lead to deal',
+        variant: 'destructive',
+      });
+    }
   };
 
   const formatCallDuration = (seconds: number) => {
