@@ -21,6 +21,7 @@ import { MasterDataModule } from '@/components/admin/MasterDataModule';
 import { InventoryModule } from '@/components/admin/InventoryModule';
 import { FinanceModule } from '@/components/admin/FinanceModule';
 import { CRMModule } from '@/components/admin/CRMModule';
+import { SalesModule } from '@/components/admin/SalesModule';
 
 const StatCard = ({ title, value, icon: Icon, trend, color }: any) => {
   const isPositive = trend && trend > 0;
@@ -57,13 +58,13 @@ const AdminDashboard = () => {
   useEffect(() => {
     // Check for hash in URL to set active tab
     const hash = window.location.hash.replace('#', '');
-    if (hash && ['overview', 'crm', 'equipment', 'customers', 'users', 'events', 'masterdata', 'contracts', 'contract-oversight', 'inventory', 'finance', 'invoices', 'workorders', 'dispatch', 'reports', 'settings'].includes(hash)) {
+    if (hash && ['overview', 'crm', 'sales', 'equipment', 'customers', 'users', 'events', 'masterdata', 'contracts', 'contract-oversight', 'inventory', 'finance', 'invoices', 'workorders', 'dispatch', 'reports', 'settings'].includes(hash)) {
       setActiveTab(hash);
     }
 
     // Listen for custom tab change events from sidebar
     const handleTabChange = (event: any) => {
-      if (event.detail && ['overview', 'crm', 'equipment', 'customers', 'users', 'events', 'masterdata', 'contracts', 'contract-oversight', 'inventory', 'finance', 'invoices', 'workorders', 'dispatch', 'reports', 'settings'].includes(event.detail)) {
+      if (event.detail && ['overview', 'crm', 'sales', 'equipment', 'customers', 'users', 'events', 'masterdata', 'contracts', 'contract-oversight', 'inventory', 'finance', 'invoices', 'workorders', 'dispatch', 'reports', 'settings'].includes(event.detail)) {
         setActiveTab(event.detail);
       }
     };
@@ -391,6 +392,7 @@ const AdminDashboard = () => {
         )}
 
         {activeTab === 'crm' && <CRMModule />}
+        {activeTab === 'sales' && <SalesModule />}
         {activeTab === 'equipment' && <EquipmentCatalogModule />}
         {activeTab === 'customers' && <CustomerModule />}
         {activeTab === 'users' && <UserManagementModule />}

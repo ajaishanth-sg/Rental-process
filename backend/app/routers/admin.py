@@ -45,11 +45,73 @@ async def get_pending_quotations(current_user: dict = Depends(get_current_user))
             quotations.append(quotation_copy)
         
         return quotations
-    
+
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching quotations: {str(e)}")
+
+@router.get("/enquiries")
+async def get_all_enquiries(current_user: dict = Depends(get_current_user)):
+    """Get all customer enquiries for admin view"""
+    try:
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Only admin can access this endpoint")
+        
+        db = get_database()
+        
+        # Get all rentals (enquiries) from database
+        rentals_cursor = db.rentals.find({})
+        rentals_raw = await rentals_cursor.to_list(length=None)
+        
+        enquiries = []
+        for rental in rentals_raw:
+            rental_copy = rental.copy()
+            rental_copy["id"] = str(rental_copy.pop("_id"))
+            
+            # Convert rental to enquiry format
+            enquiry_format = {
+                "id": rental_copy["id"],
+                "enquiry_id": rental_copy.get("contract_number", f"ENQ-{rental_copy['id'][:8]}"),
+                "customer_id": rental_copy.get("customer_id", ""),
+                "customer_name": rental_copy.get("customer_name", "Unknown Customer"),
+                "customer_email": rental_copy.get("contact_email", rental_copy.get("customer_email", "")),
+                "equipment_name": f"{rental_copy.get('equipment_category', '')} - {rental_copy.get('equipment_type', '')}".strip(' - '),
+                "quantity": rental_copy.get("quantity", 1),
+                "rental_duration_days": rental_copy.get("rental_duration_days", 0),
+                "delivery_location": rental_copy.get("delivery_address", ""),
+                "expected_delivery_date": rental_copy.get("start_date", ""),
+                "special_instructions": rental_copy.get("special_requirements", ""),
+                "assigned_salesperson_id": rental_copy.get("assigned_salesperson_id", None),
+                "assigned_salesperson_name": rental_copy.get("assigned_salesperson_name", None),
+                "status": rental_copy.get("status", "submitted_by_customer"),
+                "enquiry_date": rental_copy.get("created_at", ""),
+                "created_at": rental_copy.get("created_at", ""),
+                "updated_at": rental_copy.get("updated_at", rental_copy.get("created_at", "")),
+                "is_rental_order": True,
+                "contract_number": rental_copy.get("contract_number", ""),
+                "project_name": rental_copy.get("project_name", ""),
+                "equipment_type": rental_copy.get("equipment_type", ""),
+                "start_date": rental_copy.get("start_date", ""),
+                "end_date": rental_copy.get("end_date", ""),
+            }
+            enquiries.append(enquiry_format)
+        
+        # Also get dedicated enquiries if they exist
+        enquiries_cursor = db.enquiries.find({})
+        enquiries_raw = await enquiries_cursor.to_list(length=None)
+        
+        for enquiry in enquiries_raw:
+            enquiry_copy = enquiry.copy()
+            enquiry_copy["id"] = str(enquiry_copy.pop("_id"))
+            enquiries.append(enquiry_copy)
+        
+        return enquiries
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching enquiries: {str(e)}")
 
 @router.put("/quotations/{quotation_id}/approve")
 async def approve_quotation(quotation_id: str, current_user: dict = Depends(get_current_user)):

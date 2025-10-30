@@ -15,6 +15,7 @@ import {
   Menu,
   BarChart3,
   UserCheck,
+  ShoppingCart,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -40,6 +41,7 @@ const roleMenuItems = {
   admin: [
     { title: 'Overview', icon: LayoutDashboard, path: '/admin', tab: 'overview' },
     { title: 'CRM', icon: UserCheck, path: '/admin', tab: 'crm' },
+    { title: 'Sales', icon: ShoppingCart, path: '/admin', tab: 'sales' },
     { title: 'Users & Roles', icon: Users, path: '/admin', tab: 'users' },
     { title: 'Master Data', icon: Settings, path: '/admin', tab: 'masterdata' },
     { title: 'Contract Oversight', icon: FileText, path: '/admin', tab: 'contract-oversight' },
