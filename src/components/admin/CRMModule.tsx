@@ -39,8 +39,18 @@ import {
   UserCheck,
   FileCheck,
   Building2,
-  Globe
+  Globe,
+  Send,
+  Mic,
+  PhoneCall,
+  PhoneOff,
+  StickyNote,
+  Link2,
+  ArrowRight,
+  CheckSquare,
+  Circle
 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 
 // Mock data
 const customersData = [
@@ -372,6 +382,46 @@ export const CRMModule = () => {
     territory: '',
     leadOwner: 'Shariq Ansari'
   });
+
+  // Additional state for enhanced CRM features
+  const [convertToDealDialogOpen, setConvertToDealDialogOpen] = useState(false);
+  const [emailComposerOpen, setEmailComposerOpen] = useState(false);
+  const [callDialogOpen, setCallDialogOpen] = useState(false);
+  const [taskDialogOpen, setTaskDialogOpen] = useState(false);
+  const [noteDialogOpen, setNoteDialogOpen] = useState(false);
+  const [leadDetailTab, setLeadDetailTab] = useState('activity');
+  const [isCallActive, setIsCallActive] = useState(false);
+  const [callDuration, setCallDuration] = useState(0);
+  const [chooseExistingOrg, setChooseExistingOrg] = useState(true);
+  const [chooseExistingContact, setChooseExistingContact] = useState(false);
+  
+  const [emailData, setEmailData] = useState({
+    to: '',
+    cc: '',
+    bcc: '',
+    subject: '',
+    body: ''
+  });
+
+  const [taskData, setTaskData] = useState({
+    title: '',
+    description: '',
+    status: 'Backlog',
+    assignedTo: 'Shariq Ansari',
+    dueDate: '',
+    priority: 'Low'
+  });
+
+  const [noteData, setNoteData] = useState({
+    title: '',
+    content: ''
+  });
+
+  const [leadCalls, setLeadCalls] = useState<any[]>([]);
+  const [leadEmails, setLeadEmails] = useState<any[]>([]);
+  const [leadTasks, setLeadTasks] = useState<any[]>([]);
+  const [leadNotes, setLeadNotes] = useState<any[]>([]);
+
   const { toast } = useToast();
 
   const getStatusColor = (status: string) => {
@@ -546,6 +596,262 @@ export const CRMModule = () => {
       'Unqualified': 'destructive'
     };
     return variants[status] || 'outline';
+  };
+
+  // Call functionality
+  useEffect(() => {
+    let interval: any;
+    if (isCallActive) {
+      interval = setInterval(() => {
+        setCallDuration(prev => prev + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isCallActive]);
+
+  const handleMakeCall = () => {
+    if (!selectedLead) return;
+    setCallDuration(0);
+    setIsCallActive(true);
+    setCallDialogOpen(true);
+    
+    toast({
+      title: '📞 Calling...',
+      description: `Initiating call to ${selectedLead.firstName} ${selectedLead.lastName}`,
+    });
+  };
+
+  const handleEndCall = () => {
+    if (!selectedLead) return;
+    
+    const callLog = {
+      id: `CALL-${Date.now()}`,
+      type: 'Outbound Call',
+      duration: callDuration,
+      from: 'Shariq Ansari',
+      to: `${selectedLead.firstName} ${selectedLead.lastName}`,
+      phone: selectedLead.mobile,
+      timestamp: new Date().toLocaleString(),
+      status: 'completed'
+    };
+
+    setLeadCalls([callLog, ...leadCalls]);
+    setIsCallActive(false);
+    setCallDialogOpen(false);
+    setCallDuration(0);
+
+    // Update lead activities
+    const updatedLeads = leads.map(lead =>
+      lead.id === selectedLead.id
+        ? {
+            ...lead,
+            activities: [
+              {
+                type: 'call',
+                description: `Call with ${lead.firstName} ${lead.lastName} - Duration: ${Math.floor(callDuration / 60)}m ${callDuration % 60}s`,
+                by: 'Shariq Ansari',
+                timestamp: new Date().toLocaleString()
+              },
+              ...(lead.activities || [])
+            ]
+          }
+        : lead
+    );
+    setLeads(updatedLeads);
+    setSelectedLead(updatedLeads.find(l => l.id === selectedLead.id));
+
+    toast({
+      title: '✅ Call Ended',
+      description: `Call duration: ${Math.floor(callDuration / 60)}m ${callDuration % 60}s`,
+    });
+  };
+
+  // Email functionality
+  const handleSendEmail = () => {
+    if (!selectedLead || !emailData.subject) {
+      toast({
+        title: 'Error',
+        description: 'Subject is required',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const email = {
+      id: `EMAIL-${Date.now()}`,
+      from: 'Shariq Ansari',
+      to: emailData.to || selectedLead.email,
+      cc: emailData.cc,
+      bcc: emailData.bcc,
+      subject: emailData.subject,
+      body: emailData.body,
+      timestamp: new Date().toLocaleString(),
+      status: 'sent'
+    };
+
+    setLeadEmails([email, ...leadEmails]);
+    setEmailComposerOpen(false);
+    setEmailData({ to: '', cc: '', bcc: '', subject: '', body: '' });
+
+    // Update lead activities
+    const updatedLeads = leads.map(lead =>
+      lead.id === selectedLead.id
+        ? {
+            ...lead,
+            activities: [
+              {
+                type: 'email',
+                description: `Email sent: ${emailData.subject}`,
+                by: 'Shariq Ansari',
+                timestamp: new Date().toLocaleString()
+              },
+              ...(lead.activities || [])
+            ]
+          }
+        : lead
+    );
+    setLeads(updatedLeads);
+    setSelectedLead(updatedLeads.find(l => l.id === selectedLead.id));
+
+    toast({
+      title: '✅ Email Sent',
+      description: `Email sent to ${selectedLead.firstName} ${selectedLead.lastName}`,
+    });
+  };
+
+  // Task functionality
+  const handleCreateTask = () => {
+    if (!selectedLead || !taskData.title) {
+      toast({
+        title: 'Error',
+        description: 'Title is required',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const task = {
+      id: `TASK-${Date.now()}`,
+      title: taskData.title,
+      description: taskData.description,
+      status: taskData.status,
+      assignedTo: taskData.assignedTo,
+      dueDate: taskData.dueDate,
+      priority: taskData.priority,
+      leadId: selectedLead.id,
+      createdAt: new Date().toLocaleString(),
+      createdBy: 'Shariq Ansari'
+    };
+
+    setLeadTasks([task, ...leadTasks]);
+    setTaskDialogOpen(false);
+    setTaskData({ title: '', description: '', status: 'Backlog', assignedTo: 'Shariq Ansari', dueDate: '', priority: 'Low' });
+
+    // Update lead activities
+    const updatedLeads = leads.map(lead =>
+      lead.id === selectedLead.id
+        ? {
+            ...lead,
+            activities: [
+              {
+                type: 'task',
+                description: `Task created: ${task.title}`,
+                by: 'Shariq Ansari',
+                timestamp: new Date().toLocaleString()
+              },
+              ...(lead.activities || [])
+            ]
+          }
+        : lead
+    );
+    setLeads(updatedLeads);
+    setSelectedLead(updatedLeads.find(l => l.id === selectedLead.id));
+
+    toast({
+      title: '✅ Task Created',
+      description: taskData.title,
+    });
+  };
+
+  // Note functionality
+  const handleCreateNote = () => {
+    if (!selectedLead || !noteData.title) {
+      toast({
+        title: 'Error',
+        description: 'Title is required',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const note = {
+      id: `NOTE-${Date.now()}`,
+      title: noteData.title,
+      content: noteData.content,
+      leadId: selectedLead.id,
+      createdAt: new Date().toLocaleString(),
+      createdBy: 'Shariq Ansari'
+    };
+
+    setLeadNotes([note, ...leadNotes]);
+    setNoteDialogOpen(false);
+    setNoteData({ title: '', content: '' });
+
+    // Update lead activities
+    const updatedLeads = leads.map(lead =>
+      lead.id === selectedLead.id
+        ? {
+            ...lead,
+            activities: [
+              {
+                type: 'note',
+                description: `Note added: ${note.title}`,
+                by: 'Shariq Ansari',
+                timestamp: new Date().toLocaleString()
+              },
+              ...(lead.activities || [])
+            ]
+          }
+        : lead
+    );
+    setLeads(updatedLeads);
+    setSelectedLead(updatedLeads.find(l => l.id === selectedLead.id));
+
+    toast({
+      title: '✅ Note Created',
+      description: noteData.title,
+    });
+  };
+
+  // Convert to Deal functionality
+  const handleConvertToDeal = () => {
+    if (!selectedLead) return;
+
+    toast({
+      title: '✅ Lead Converted to Deal',
+      description: `${selectedLead.firstName} ${selectedLead.lastName} has been converted to a deal.`,
+    });
+
+    // Update lead status
+    const updatedLeads = leads.map(lead =>
+      lead.id === selectedLead.id
+        ? {
+            ...lead,
+            status: 'Qualified',
+            convertedToDeal: true,
+            convertedAt: new Date().toLocaleString()
+          }
+        : lead
+    );
+    setLeads(updatedLeads);
+    setConvertToDealDialogOpen(false);
+    setLeadDetailsDialogOpen(false);
+  };
+
+  const formatCallDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -1058,173 +1364,312 @@ export const CRMModule = () => {
             </CardContent>
           </Card>
 
-          {/* Lead Details Dialog */}
+          {/* Enhanced Lead Details Dialog */}
           <Dialog open={leadDetailsDialogOpen} onOpenChange={setLeadDetailsDialogOpen}>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {selectedLead?.salutation} {selectedLead?.firstName} {selectedLead?.lastName}
-                </DialogTitle>
-                <DialogDescription>{selectedLead?.id}</DialogDescription>
-              </DialogHeader>
+            <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-hidden p-0">
               {selectedLead && (
-                <div className="space-y-6">
-                  {/* Activity Section */}
-                  <div className="space-y-3">
-                    <h4 className="font-semibold flex items-center gap-2">
-                      <Activity className="h-4 w-4" />
-                      Activity
-                    </h4>
-                    <div className="space-y-2">
-                      {selectedLead.activities && selectedLead.activities.length > 0 ? (
-                        selectedLead.activities.map((activity: any, idx: number) => (
-                          <div key={idx} className="flex items-start gap-3 text-sm border-l-2 pl-3 py-2">
-                            <UserCheck className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                            <div>
-                              <p className="font-medium">{activity.description}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {activity.by} • {activity.timestamp}
-                              </p>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-muted-foreground">No activities yet</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Details Section */}
-                  <div className="space-y-3">
-                    <h4 className="font-semibold">Details</h4>
-                    <div className="grid grid-cols-2 gap-4">
+                <div className="flex h-full">
+                  {/* Main Content Area */}
+                  <div className="flex-1 flex flex-col">
+                    {/* Header */}
+                    <div className="px-6 py-4 border-b flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-muted-foreground">Organization</p>
-                        <p className="font-medium flex items-center gap-2">
-                          <Building2 className="h-4 w-4" />
-                          {selectedLead.organization}
-                        </p>
+                        <div className="text-sm text-muted-foreground">Leads / {selectedLead.firstName} {selectedLead.lastName}</div>
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Website</p>
-                        <p className="font-medium flex items-center gap-2">
-                          <Globe className="h-4 w-4" />
-                          {selectedLead.website}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Industry</p>
-                        <p className="font-medium">{selectedLead.industry}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Job Title</p>
-                        <p className="font-medium">{selectedLead.jobTitle}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Source</p>
-                        <p className="font-medium">{selectedLead.source}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Lead Owner</p>
-                        <p className="font-medium flex items-center gap-2">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
                           <UserCheck className="h-4 w-4" />
-                          {selectedLead.leadOwner}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Person Section */}
-                  <div className="space-y-3">
-                    <h4 className="font-semibold">Person</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Salutation</p>
-                        <p className="font-medium">{selectedLead.salutation}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">First Name</p>
-                        <p className="font-medium">{selectedLead.firstName}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Last Name</p>
-                        <p className="font-medium">{selectedLead.lastName}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Email</p>
-                        <p className="font-medium flex items-center gap-2">
-                          <Mail className="h-4 w-4" />
-                          {selectedLead.email}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Mobile No</p>
-                        <p className="font-medium flex items-center gap-2">
-                          <Phone className="h-4 w-4" />
-                          {selectedLead.mobile}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Gender</p>
-                        <p className="font-medium">{selectedLead.gender}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Additional Information */}
-                  <div className="space-y-3">
-                    <h4 className="font-semibold">Additional Information</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">No of Employees</p>
-                        <p className="font-medium">{selectedLead.noOfEmployees}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Annual Revenue</p>
-                        <p className="font-medium">
-                          {selectedLead.annualRevenue ? `$${selectedLead.annualRevenue.toLocaleString()}` : 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Territory</p>
-                        <p className="font-medium flex items-center gap-2">
-                          <MapPin className="h-4 w-4" />
-                          {selectedLead.territory}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Status</p>
+                          <span className="text-sm">{selectedLead.leadOwner}</span>
+                        </div>
                         <Badge variant={getLeadStatusBadge(selectedLead.status)}>
                           {selectedLead.status}
                         </Badge>
+                        <Button onClick={() => setConvertToDealDialogOpen(true)}>
+                          Convert to Deal
+                        </Button>
                       </div>
                     </div>
+
+                    {/* Tabs for Activity, Emails, Calls, Tasks, Notes */}
+                    <Tabs value={leadDetailTab} onValueChange={setLeadDetailTab} className="flex-1 flex flex-col">
+                      <TabsList className="px-6 border-b rounded-none w-full justify-start">
+                        <TabsTrigger value="activity">Activity</TabsTrigger>
+                        <TabsTrigger value="emails">Emails</TabsTrigger>
+                        <TabsTrigger value="calls">Calls</TabsTrigger>
+                        <TabsTrigger value="tasks">Tasks</TabsTrigger>
+                        <TabsTrigger value="notes">Notes</TabsTrigger>
+                        <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
+                      </TabsList>
+
+                      <div className="flex-1 overflow-y-auto px-6 py-4">
+                        {/* Activity Tab */}
+                        <TabsContent value="activity" className="mt-0">
+                          <div className="space-y-4">
+                            {selectedLead.activities && selectedLead.activities.length > 0 ? (
+                              selectedLead.activities.map((activity: any, idx: number) => (
+                                <div key={idx} className="flex items-start gap-3 border-l-2 pl-4 py-2">
+                                  <UserCheck className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                                  <div className="flex-1">
+                                    <p className="font-medium">{activity.description}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      {activity.by} • {activity.timestamp}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="text-center py-12 text-muted-foreground">
+                                <Activity className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                                <p>No activities yet</p>
+                              </div>
+                            )}
+                          </div>
+                        </TabsContent>
+
+                        {/* Emails Tab */}
+                        <TabsContent value="emails" className="mt-0">
+                          <div className="space-y-4">
+                            <Button onClick={() => { setEmailData({...emailData, to: selectedLead.email, subject: `${selectedLead.firstName} ${selectedLead.lastName} (#${selectedLead.id})`}); setEmailComposerOpen(true); }}>
+                              <Mail className="h-4 w-4 mr-2" />
+                              New Email
+                            </Button>
+                            {leadEmails.length > 0 ? (
+                              leadEmails.map((email: any) => (
+                                <Card key={email.id}>
+                                  <CardHeader>
+                                    <div className="flex items-start justify-between">
+                                      <div>
+                                        <CardTitle className="text-base">{email.subject}</CardTitle>
+                                        <CardDescription>TO: {email.to}</CardDescription>
+                                      </div>
+                                      <span className="text-xs text-muted-foreground">{email.timestamp}</span>
+                                    </div>
+                                  </CardHeader>
+                                  <CardContent>
+                                    <p className="text-sm">{email.body}</p>
+                                  </CardContent>
+                                </Card>
+                              ))
+                            ) : (
+                              <div className="text-center py-12 text-muted-foreground">
+                                <Mail className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                                <p>No Email Communications</p>
+                              </div>
+                            )}
+                          </div>
+                        </TabsContent>
+
+                        {/* Calls Tab */}
+                        <TabsContent value="calls" className="mt-0">
+                          <div className="space-y-4">
+                            <Button onClick={handleMakeCall}>
+                              <Phone className="h-4 w-4 mr-2" />
+                              Make a Call
+                            </Button>
+                            {leadCalls.length > 0 ? (
+                              leadCalls.map((call: any) => (
+                                <Card key={call.id}>
+                                  <CardHeader>
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-3">
+                                        <PhoneCall className="h-5 w-5" />
+                                        <div>
+                                          <CardTitle className="text-base">{call.type}</CardTitle>
+                                          <CardDescription>
+                                            Duration: {Math.floor(call.duration / 60)}m {call.duration % 60}s
+                                          </CardDescription>
+                                        </div>
+                                      </div>
+                                      <span className="text-xs text-muted-foreground">{call.timestamp}</span>
+                                    </div>
+                                  </CardHeader>
+                                  <CardContent>
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <span>{call.from}</span>
+                                      <ArrowRight className="h-4 w-4" />
+                                      <span>{call.to}</span>
+                                      <span className="text-muted-foreground">({call.phone})</span>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ))
+                            ) : (
+                              <div className="text-center py-12 text-muted-foreground">
+                                <Phone className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                                <p>No Call Logs</p>
+                              </div>
+                            )}
+                          </div>
+                        </TabsContent>
+
+                        {/* Tasks Tab */}
+                        <TabsContent value="tasks" className="mt-0">
+                          <div className="space-y-4">
+                            <Button onClick={() => setTaskDialogOpen(true)}>
+                              <Plus className="h-4 w-4 mr-2" />
+                              New Task
+                            </Button>
+                            {leadTasks.length > 0 ? (
+                              leadTasks.map((task: any) => (
+                                <Card key={task.id}>
+                                  <CardHeader>
+                                    <div className="flex items-center justify-between">
+                                      <CardTitle className="text-base">{task.title}</CardTitle>
+                                      <Badge variant="outline">{task.status}</Badge>
+                                    </div>
+                                    <CardDescription>{task.description}</CardDescription>
+                                  </CardHeader>
+                                  <CardContent>
+                                    <div className="flex items-center gap-4 text-sm">
+                                      <span className="flex items-center gap-1">
+                                        <UserCheck className="h-4 w-4" />
+                                        {task.assignedTo}
+                                      </span>
+                                      <span className="flex items-center gap-1">
+                                        <Calendar className="h-4 w-4" />
+                                        {task.dueDate || 'No due date'}
+                                      </span>
+                                      <Badge variant={task.priority === 'High' ? 'destructive' : 'secondary'}>
+                                        {task.priority}
+                                      </Badge>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ))
+                            ) : (
+                              <div className="text-center py-12 text-muted-foreground">
+                                <CheckSquare className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                                <p>No tasks yet</p>
+                              </div>
+                            )}
+                          </div>
+                        </TabsContent>
+
+                        {/* Notes Tab */}
+                        <TabsContent value="notes" className="mt-0">
+                          <div className="space-y-4">
+                            <Button onClick={() => setNoteDialogOpen(true)}>
+                              <Plus className="h-4 w-4 mr-2" />
+                              New Note
+                            </Button>
+                            {leadNotes.length > 0 ? (
+                              leadNotes.map((note: any) => (
+                                <Card key={note.id}>
+                                  <CardHeader>
+                                    <div className="flex items-center justify-between">
+                                      <CardTitle className="text-base">{note.title}</CardTitle>
+                                      <span className="text-xs text-muted-foreground">{note.createdAt}</span>
+                                    </div>
+                                  </CardHeader>
+                                  <CardContent>
+                                    <p className="text-sm whitespace-pre-wrap">{note.content}</p>
+                                    <p className="text-xs text-muted-foreground mt-2">By {note.createdBy}</p>
+                                  </CardContent>
+                                </Card>
+                              ))
+                            ) : (
+                              <div className="text-center py-12 text-muted-foreground">
+                                <StickyNote className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                                <p>No notes yet</p>
+                              </div>
+                            )}
+                          </div>
+                        </TabsContent>
+
+                        {/* WhatsApp Tab */}
+                        <TabsContent value="whatsapp" className="mt-0">
+                          <div className="text-center py-12 text-muted-foreground">
+                            <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                            <p>WhatsApp integration coming soon</p>
+                          </div>
+                        </TabsContent>
+                      </div>
+                    </Tabs>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex gap-2 pt-4 border-t">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleUpdateLeadStatus(selectedLead.id, 'Qualified')}
-                      disabled={selectedLead.status === 'Qualified'}
-                    >
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Mark as Qualified
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleUpdateLeadStatus(selectedLead.id, 'Junk')}
-                      disabled={selectedLead.status === 'Junk'}
-                    >
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Mark as Junk
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      Add Note
-                    </Button>
+                  {/* Right Sidebar - Lead Details */}
+                  <div className="w-80 border-l bg-muted/20 overflow-y-auto p-6">
+                    <div className="space-y-6">
+                      {/* Lead Info */}
+                      <div className="text-center pb-4 border-b">
+                        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                          <span className="text-2xl font-bold text-primary">
+                            {selectedLead.firstName[0]}
+                          </span>
+                        </div>
+                        <h3 className="font-bold text-lg">
+                          {selectedLead.salutation} {selectedLead.firstName} {selectedLead.lastName}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">{selectedLead.id}</p>
+                        <div className="flex items-center justify-center gap-3 mt-3">
+                          <Button size="icon" variant="outline" onClick={handleMakeCall}>
+                            <Phone className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="outline" onClick={() => { setEmailData({...emailData, to: selectedLead.email}); setEmailComposerOpen(true); }}>
+                            <Mail className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="outline">
+                            <Link2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Details */}
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="font-semibold text-sm mb-3">Details</h4>
+                          <div className="space-y-3">
+                            <div>
+                              <p className="text-xs text-muted-foreground">Organization</p>
+                              <p className="text-sm font-medium">{selectedLead.organization}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Website</p>
+                              <p className="text-sm font-medium">{selectedLead.website}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Industry</p>
+                              <p className="text-sm font-medium">{selectedLead.industry}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Job Title</p>
+                              <p className="text-sm font-medium">{selectedLead.jobTitle}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Source</p>
+                              <p className="text-sm font-medium">{selectedLead.source}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Lead Owner</p>
+                              <p className="text-sm font-medium">{selectedLead.leadOwner}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Person */}
+                        <div className="pt-4 border-t">
+                          <h4 className="font-semibold text-sm mb-3">Person</h4>
+                          <div className="space-y-3">
+                            <div>
+                              <p className="text-xs text-muted-foreground">First Name *</p>
+                              <p className="text-sm font-medium">{selectedLead.firstName}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Last Name</p>
+                              <p className="text-sm font-medium">{selectedLead.lastName}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Email</p>
+                              <p className="text-sm font-medium">{selectedLead.email}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Mobile No</p>
+                              <p className="text-sm font-medium">{selectedLead.mobile}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1788,6 +2233,299 @@ export const CRMModule = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Convert to Deal Dialog */}
+      <Dialog open={convertToDealDialogOpen} onOpenChange={setConvertToDealDialogOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Convert to Deal</DialogTitle>
+            <DialogDescription>
+              While converting you can select existing organization or contact
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6">
+            {/* Organization */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-muted-foreground" />
+                <Label>Organization</Label>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Choose Existing</span>
+                <Switch checked={chooseExistingOrg} onCheckedChange={setChooseExistingOrg} />
+              </div>
+              {chooseExistingOrg ? (
+                <Select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select organization" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="adobe">Adobe Inc</SelectItem>
+                    <SelectItem value="bwh">BWH</SelectItem>
+                    <SelectItem value="centered">Centered</SelectItem>
+                    <SelectItem value="circooles">Circooles</SelectItem>
+                    <SelectItem value="figma">Figma</SelectItem>
+                    <SelectItem value="havells">Havells India Ltd.</SelectItem>
+                    <SelectItem value="nike">Nike</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  New organization will be created based on the data in details section
+                </p>
+              )}
+            </div>
+
+            {/* Contact */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <UserCheck className="h-5 w-5 text-muted-foreground" />
+                <Label>Contact</Label>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Choose Existing</span>
+                <Switch checked={chooseExistingContact} onCheckedChange={setChooseExistingContact} />
+              </div>
+              {!chooseExistingContact && (
+                <p className="text-sm text-muted-foreground">
+                  New contact will be created based on the person's details
+                </p>
+              )}
+            </div>
+
+            <Button onClick={handleConvertToDeal} className="w-full">
+              Convert to deal
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Email Composer Dialog */}
+      <Dialog open={emailComposerOpen} onOpenChange={setEmailComposerOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>New Email</DialogTitle>
+            <DialogDescription>Compose and send email to lead</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>SUBJECT:</Label>
+              <Input
+                value={emailData.subject}
+                onChange={(e) => setEmailData({...emailData, subject: e.target.value})}
+                placeholder="Subject"
+              />
+            </div>
+            <div>
+              <Label>TO:</Label>
+              <Input
+                value={emailData.to}
+                onChange={(e) => setEmailData({...emailData, to: e.target.value})}
+                placeholder="recipient@email.com"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>CC:</Label>
+                <Input
+                  value={emailData.cc}
+                  onChange={(e) => setEmailData({...emailData, cc: e.target.value})}
+                  placeholder="CC"
+                />
+              </div>
+              <div>
+                <Label>BCC:</Label>
+                <Input
+                  value={emailData.bcc}
+                  onChange={(e) => setEmailData({...emailData, bcc: e.target.value})}
+                  placeholder="BCC"
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Message:</Label>
+              <Textarea
+                value={emailData.body}
+                onChange={(e) => setEmailData({...emailData, body: e.target.value})}
+                placeholder="Type your message here..."
+                rows={8}
+              />
+            </div>
+            <div className="flex justify-between">
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm">
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Reply
+                </Button>
+                <Button variant="outline" size="sm">
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Comment
+                </Button>
+              </div>
+              <Button onClick={handleSendEmail}>
+                <Send className="h-4 w-4 mr-2" />
+                Send
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Call Dialog */}
+      <Dialog open={callDialogOpen} onOpenChange={(open) => { if (!open && isCallActive) handleEndCall(); else setCallDialogOpen(open); }}>
+        <DialogContent className="max-w-md">
+          <div className="text-center space-y-6">
+            <div className="w-32 h-32 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+              <span className="text-5xl font-bold text-primary">
+                {selectedLead?.firstName[0]}
+              </span>
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold">
+                {selectedLead?.salutation} {selectedLead?.firstName} {selectedLead?.lastName}
+              </h3>
+              <p className="text-muted-foreground">{selectedLead?.mobile}</p>
+            </div>
+            <div className="text-4xl font-mono">{formatCallDuration(callDuration)}</div>
+            <div className="flex items-center justify-center gap-4">
+              <Button size="icon" variant="outline" className="rounded-full h-14 w-14">
+                <Mic className="h-6 w-6" />
+              </Button>
+              <Button size="icon" variant="outline" className="rounded-full h-14 w-14" onClick={() => setNoteDialogOpen(true)}>
+                <StickyNote className="h-6 w-6" />
+              </Button>
+              <Button size="icon" variant="destructive" className="rounded-full h-14 w-14" onClick={handleEndCall}>
+                <PhoneOff className="h-6 w-6" />
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {isCallActive ? 'Initiating call...' : 'Call ended'}
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Task Dialog */}
+      <Dialog open={taskDialogOpen} onOpenChange={setTaskDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create Task</DialogTitle>
+            <DialogDescription>Create tasks to capture followup details</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Title</Label>
+              <Input
+                value={taskData.title}
+                onChange={(e) => setTaskData({...taskData, title: e.target.value})}
+                placeholder="Follow Up"
+              />
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Textarea
+                value={taskData.description}
+                onChange={(e) => setTaskData({...taskData, description: e.target.value})}
+                placeholder="Took a call with John Doe and discussed the new project."
+                rows={4}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Status</Label>
+                <Select value={taskData.status} onValueChange={(value) => setTaskData({...taskData, status: value})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Backlog">
+                      <div className="flex items-center gap-2">
+                        <Circle className="h-4 w-4" />
+                        Backlog
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                    <SelectItem value="Done">Done</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Assigned To</Label>
+                <Select value={taskData.assignedTo} onValueChange={(value) => setTaskData({...taskData, assignedTo: value})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Shariq Ansari">Shariq Ansari</SelectItem>
+                    <SelectItem value="Asif Mula">Asif Mula</SelectItem>
+                    <SelectItem value="Ankush Nehe">Ankush Nehe</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Due Date</Label>
+                <Input
+                  type="datetime-local"
+                  value={taskData.dueDate}
+                  onChange={(e) => setTaskData({...taskData, dueDate: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label>Priority</Label>
+                <Select value={taskData.priority} onValueChange={(value) => setTaskData({...taskData, priority: value})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Low">Low</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="High">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setTaskDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleCreateTask}>Create Task</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Note Dialog */}
+      <Dialog open={noteDialogOpen} onOpenChange={setNoteDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create Note</DialogTitle>
+            <DialogDescription>While you are in the call make a note in real time</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Title</Label>
+              <Input
+                value={noteData.title}
+                onChange={(e) => setNoteData({...noteData, title: e.target.value})}
+                placeholder="Call with John Doe"
+              />
+            </div>
+            <div>
+              <Label>Content</Label>
+              <Textarea
+                value={noteData.content}
+                onChange={(e) => setNoteData({...noteData, content: e.target.value})}
+                placeholder="Took a call with John Doe and discussed the new project."
+                rows={8}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setNoteDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleCreateNote}>Save Note</Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
