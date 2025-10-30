@@ -1,0 +1,1058 @@
+import { useState, useEffect } from 'react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
+import { useToast } from '@/hooks/use-toast';
+import { 
+  Users, 
+  FileText, 
+  TrendingUp, 
+  Star, 
+  Mail, 
+  Phone, 
+  MapPin, 
+  Calendar, 
+  Upload, 
+  Download,
+  Eye,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  XCircle,
+  Search,
+  Plus,
+  Edit,
+  Trash2,
+  MessageSquare,
+  DollarSign,
+  Award,
+  Target,
+  Activity,
+  UserCheck,
+  FileCheck,
+  Building2,
+  Globe
+} from 'lucide-react';
+
+// Mock data
+const customersData = [
+  {
+    id: 'CUST-001',
+    name: 'ABC Construction LLC',
+    contactPerson: 'Ahmed Ali',
+    email: 'ahmed@abcconstruction.ae',
+    phone: '+971-4-123-4567',
+    location: 'Dubai Marina, Dubai',
+    website: 'www.abcconstruction.ae',
+    companyType: 'Construction',
+    registrationDate: '2024-01-15',
+    totalValue: 156000,
+    activeContracts: 3,
+    completedProjects: 8,
+    satisfactionScore: 4.8,
+    status: 'active',
+    passportNumber: 'P12345678',
+    passportExpiry: '2026-05-20',
+    emiratesId: 'EID-784-1985-1234567-1',
+    tradeLicense: 'TL-123456',
+    licenseExpiry: '2025-12-31',
+    vatNumber: 'VAT-100012345',
+    creditLimit: 200000,
+    outstandingAmount: 45000,
+    documents: [
+      { name: 'Trade License', type: 'license', status: 'verified', uploadDate: '2024-01-15', expiryDate: '2025-12-31' },
+      { name: 'Passport Copy', type: 'passport', status: 'verified', uploadDate: '2024-01-15', expiryDate: '2026-05-20' },
+      { name: 'Emirates ID', type: 'id', status: 'verified', uploadDate: '2024-01-15', expiryDate: '2026-08-15' },
+      { name: 'VAT Certificate', type: 'certificate', status: 'verified', uploadDate: '2024-01-15', expiryDate: '2025-12-31' }
+    ]
+  },
+  {
+    id: 'CUST-002',
+    name: 'Dubai Builders Co.',
+    contactPerson: 'Mohammed Hassan',
+    email: 'mohammed@dubaibuilders.ae',
+    phone: '+971-4-234-5678',
+    location: 'Business Bay, Dubai',
+    website: 'www.dubaibuilders.ae',
+    companyType: 'Development',
+    registrationDate: '2024-02-10',
+    totalValue: 234000,
+    activeContracts: 5,
+    completedProjects: 12,
+    satisfactionScore: 4.9,
+    status: 'active',
+    passportNumber: 'P87654321',
+    passportExpiry: '2027-03-15',
+    emiratesId: 'EID-784-1990-7654321-1',
+    tradeLicense: 'TL-234567',
+    licenseExpiry: '2026-06-30',
+    vatNumber: 'VAT-100023456',
+    creditLimit: 300000,
+    outstandingAmount: 78000,
+    documents: [
+      { name: 'Trade License', type: 'license', status: 'verified', uploadDate: '2024-02-10', expiryDate: '2026-06-30' },
+      { name: 'Passport Copy', type: 'passport', status: 'pending', uploadDate: '2024-02-10', expiryDate: '2027-03-15' },
+      { name: 'Emirates ID', type: 'id', status: 'verified', uploadDate: '2024-02-10', expiryDate: '2027-09-20' }
+    ]
+  },
+  {
+    id: 'CUST-003',
+    name: 'Elite Construction',
+    contactPerson: 'Rashid Al Maktoum',
+    email: 'rashid@eliteconstruction.ae',
+    phone: '+971-4-345-6789',
+    location: 'DIFC, Dubai',
+    website: 'www.eliteconstruction.ae',
+    companyType: 'Construction',
+    registrationDate: '2023-11-20',
+    totalValue: 189000,
+    activeContracts: 4,
+    completedProjects: 15,
+    satisfactionScore: 4.6,
+    status: 'warning',
+    passportNumber: 'P11223344',
+    passportExpiry: '2025-11-10',
+    emiratesId: 'EID-784-1987-1122334-1',
+    tradeLicense: 'TL-345678',
+    licenseExpiry: '2025-03-31',
+    vatNumber: 'VAT-100034567',
+    creditLimit: 250000,
+    outstandingAmount: 120000,
+    documents: [
+      { name: 'Trade License', type: 'license', status: 'expiring', uploadDate: '2023-11-20', expiryDate: '2025-03-31' },
+      { name: 'Passport Copy', type: 'passport', status: 'expiring', uploadDate: '2023-11-20', expiryDate: '2025-11-10' },
+      { name: 'Emirates ID', type: 'id', status: 'verified', uploadDate: '2023-11-20', expiryDate: '2026-12-15' }
+    ]
+  }
+];
+
+const pipelineData = [
+  {
+    id: 'PIPE-001',
+    customerId: 'CUST-001',
+    customerName: 'ABC Construction LLC',
+    enquiryId: 'ENQ-2025-001',
+    enquiryDate: '2025-01-10',
+    enquiryStatus: 'completed',
+    quotationId: 'QUO-2025-001',
+    quotationDate: '2025-01-12',
+    quotationValue: 15000,
+    quotationStatus: 'accepted',
+    contractId: 'RC-2025-001',
+    contractDate: '2025-01-15',
+    contractValue: 15000,
+    contractStatus: 'active',
+    feedbackScore: 5,
+    feedbackDate: '2025-01-25',
+    stage: 'contract',
+    notes: 'Smooth transition from enquiry to contract. Customer very satisfied.'
+  },
+  {
+    id: 'PIPE-002',
+    customerId: 'CUST-002',
+    customerName: 'Dubai Builders Co.',
+    enquiryId: 'ENQ-2025-002',
+    enquiryDate: '2025-01-15',
+    enquiryStatus: 'completed',
+    quotationId: 'QUO-2025-002',
+    quotationDate: '2025-01-17',
+    quotationValue: 22000,
+    quotationStatus: 'pending',
+    contractId: null,
+    contractDate: null,
+    contractValue: null,
+    contractStatus: null,
+    feedbackScore: null,
+    feedbackDate: null,
+    stage: 'quotation',
+    notes: 'Awaiting customer decision on quotation.'
+  },
+  {
+    id: 'PIPE-003',
+    customerId: 'CUST-003',
+    customerName: 'Elite Construction',
+    enquiryId: 'ENQ-2025-003',
+    enquiryDate: '2025-01-20',
+    enquiryStatus: 'completed',
+    quotationId: 'QUO-2025-003',
+    quotationDate: '2025-01-22',
+    quotationValue: 18000,
+    quotationStatus: 'accepted',
+    contractId: 'RC-2025-003',
+    contractDate: '2025-01-24',
+    contractValue: 18000,
+    contractStatus: 'completed',
+    feedbackScore: 4,
+    feedbackDate: '2025-01-26',
+    stage: 'feedback',
+    notes: 'Contract completed successfully. Good feedback received.'
+  },
+  {
+    id: 'PIPE-004',
+    customerId: 'CUST-001',
+    customerName: 'ABC Construction LLC',
+    enquiryId: 'ENQ-2025-004',
+    enquiryDate: '2025-01-25',
+    enquiryStatus: 'in-progress',
+    quotationId: null,
+    quotationDate: null,
+    quotationValue: null,
+    quotationStatus: null,
+    contractId: null,
+    contractDate: null,
+    contractValue: null,
+    contractStatus: null,
+    feedbackScore: null,
+    feedbackDate: null,
+    stage: 'enquiry',
+    notes: 'New enquiry received. Preparing quotation.'
+  }
+];
+
+const salesPerformanceData = [
+  { month: 'Jan 2025', enquiries: 25, quotations: 18, contracts: 12, revenue: 180000, conversionRate: 66.7 },
+  { month: 'Dec 2024', enquiries: 30, quotations: 22, contracts: 15, revenue: 225000, conversionRate: 68.2 },
+  { month: 'Nov 2024', enquiries: 28, quotations: 20, contracts: 13, revenue: 195000, conversionRate: 65.0 },
+  { month: 'Oct 2024', enquiries: 32, quotations: 24, contracts: 16, revenue: 240000, conversionRate: 66.7 }
+];
+
+export const CRMModule = () => {
+  const [customers, setCustomers] = useState(customersData);
+  const [pipeline, setPipeline] = useState(pipelineData);
+  const [salesPerformance, setSalesPerformance] = useState(salesPerformanceData);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [documentDialogOpen, setDocumentDialogOpen] = useState(false);
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const { toast } = useToast();
+
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      active: 'bg-green-500',
+      warning: 'bg-yellow-500',
+      inactive: 'bg-red-500',
+      verified: 'bg-green-500',
+      pending: 'bg-yellow-500',
+      expiring: 'bg-orange-500',
+      expired: 'bg-red-500',
+      completed: 'bg-blue-500',
+      'in-progress': 'bg-purple-500',
+      accepted: 'bg-green-500',
+      rejected: 'bg-red-500'
+    };
+    return colors[status] || 'bg-gray-500';
+  };
+
+  const getStatusBadgeVariant = (status: string): "default" | "secondary" | "outline" | "destructive" => {
+    const variants: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
+      active: 'default',
+      verified: 'default',
+      completed: 'default',
+      accepted: 'default',
+      warning: 'outline',
+      pending: 'outline',
+      expiring: 'outline',
+      'in-progress': 'secondary',
+      inactive: 'destructive',
+      expired: 'destructive',
+      rejected: 'destructive'
+    };
+    return variants[status] || 'outline';
+  };
+
+  const getStageIcon = (stage: string) => {
+    const icons: Record<string, any> = {
+      enquiry: Clock,
+      quotation: FileText,
+      contract: FileCheck,
+      feedback: Star
+    };
+    return icons[stage] || Clock;
+  };
+
+  const handleViewCustomer = (customer: any) => {
+    setSelectedCustomer(customer);
+    setDetailsDialogOpen(true);
+  };
+
+  const handleViewDocuments = (customer: any) => {
+    setSelectedCustomer(customer);
+    setDocumentDialogOpen(true);
+  };
+
+  const handleDocumentUpload = (customer: any) => {
+    toast({
+      title: 'Document Upload',
+      description: 'Document upload functionality would be implemented here.',
+    });
+  };
+
+  const getTotalCustomers = () => customers.length;
+  const getActiveCustomers = () => customers.filter(c => c.status === 'active').length;
+  const getTotalRevenue = () => customers.reduce((sum, c) => sum + c.totalValue, 0);
+  const getAverageSatisfaction = () => {
+    const scores = customers.map(c => c.satisfactionScore);
+    return (scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(1);
+  };
+
+  const getExpiringDocuments = () => {
+    const expiringDocs: any[] = [];
+    customers.forEach(customer => {
+      customer.documents.forEach(doc => {
+        if (doc.status === 'expiring') {
+          expiringDocs.push({ ...doc, customerName: customer.name, customerId: customer.id });
+        }
+      });
+    });
+    return expiringDocs;
+  };
+
+  const filteredCustomers = customers.filter(customer =>
+    customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    customer.id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-2xl font-bold">CRM Control Center</h3>
+          <p className="text-sm text-muted-foreground">
+            Comprehensive customer relationship management, document tracking, and sales pipeline visibility
+          </p>
+        </div>
+      </div>
+
+      {/* Quick Stats Dashboard */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{getTotalCustomers()}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              <span className="text-green-600 font-medium">{getActiveCustomers()} active</span>
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">AED {getTotalRevenue().toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              <span className="text-green-600 font-medium">+12.5%</span> from last month
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Avg Satisfaction</CardTitle>
+            <Star className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{getAverageSatisfaction()} / 5.0</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              <span className="text-green-600 font-medium">Excellent</span> customer satisfaction
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Document Alerts</CardTitle>
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">{getExpiringDocuments().length}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Documents expiring soon
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="customers">Customers</TabsTrigger>
+          <TabsTrigger value="pipeline">Sales Pipeline</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="performance">Performance</TabsTrigger>
+        </TabsList>
+
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Recent Customer Activity */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Customer Activity</CardTitle>
+                <CardDescription>Latest customer interactions and updates</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {customers.slice(0, 3).map((customer) => (
+                    <div key={customer.id} className="flex items-center justify-between border-b pb-3 last:border-0">
+                      <div className="flex items-center gap-3">
+                        <div className={`h-2 w-2 rounded-full ${getStatusColor(customer.status)}`} />
+                        <div>
+                          <p className="font-medium text-sm">{customer.name}</p>
+                          <p className="text-xs text-muted-foreground">{customer.contactPerson}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold">AED {customer.totalValue.toLocaleString()}</p>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                          <span>{customer.satisfactionScore}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Pipeline Status */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Sales Pipeline Status</CardTitle>
+                <CardDescription>Current stage distribution of all deals</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {['enquiry', 'quotation', 'contract', 'feedback'].map((stage) => {
+                    const count = pipeline.filter(p => p.stage === stage).length;
+                    const percentage = (count / pipeline.length) * 100;
+                    const Icon = getStageIcon(stage);
+                    return (
+                      <div key={stage} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Icon className="h-4 w-4" />
+                            <span className="text-sm font-medium capitalize">{stage}</span>
+                          </div>
+                          <span className="text-sm text-muted-foreground">{count} deals</span>
+                        </div>
+                        <Progress value={percentage} className="h-2" />
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Document Alerts */}
+          {getExpiringDocuments().length > 0 && (
+            <Card className="border-orange-200 bg-orange-50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-orange-800">
+                  <AlertCircle className="h-5 w-5" />
+                  Document Expiry Alerts
+                </CardTitle>
+                <CardDescription className="text-orange-700">
+                  The following documents are expiring soon and require attention
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {getExpiringDocuments().map((doc, idx) => (
+                    <div key={idx} className="flex items-center justify-between bg-white p-3 rounded-lg">
+                      <div>
+                        <p className="font-medium text-sm">{doc.customerName}</p>
+                        <p className="text-xs text-muted-foreground">{doc.name} - Expires: {doc.expiryDate}</p>
+                      </div>
+                      <Button size="sm" variant="outline">
+                        Request Update
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Customers Tab */}
+        <TabsContent value="customers" className="space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search customers by name, email, or ID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Customer
+            </Button>
+          </div>
+
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Customer ID</TableHead>
+                  <TableHead>Company Name</TableHead>
+                  <TableHead>Contact Person</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Total Value</TableHead>
+                  <TableHead>Active Contracts</TableHead>
+                  <TableHead>Satisfaction</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredCustomers.map((customer) => (
+                  <TableRow key={customer.id}>
+                    <TableCell className="font-medium">{customer.id}</TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{customer.name}</p>
+                        <p className="text-xs text-muted-foreground">{customer.companyType}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="text-sm">{customer.contactPerson}</p>
+                        <p className="text-xs text-muted-foreground">{customer.email}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm">{customer.phone}</TableCell>
+                    <TableCell className="font-semibold">AED {customer.totalValue.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{customer.activeContracts}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <span className="font-medium">{customer.satisfactionScore}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getStatusBadgeVariant(customer.status)}>
+                        {customer.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex gap-1 justify-end">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="View Details"
+                          onClick={() => handleViewCustomer(customer)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="View Documents"
+                          onClick={() => handleViewDocuments(customer)}
+                        >
+                          <FileText className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" title="Edit Customer">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        {/* Sales Pipeline Tab */}
+        <TabsContent value="pipeline" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Complete Sales Pipeline</CardTitle>
+              <CardDescription>Track every deal from enquiry to feedback</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Enquiry</TableHead>
+                      <TableHead>Quotation</TableHead>
+                      <TableHead>Contract</TableHead>
+                      <TableHead>Feedback</TableHead>
+                      <TableHead>Stage</TableHead>
+                      <TableHead>Value</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pipeline.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium text-sm">{item.customerName}</p>
+                            <p className="text-xs text-muted-foreground">{item.customerId}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {item.enquiryStatus === 'completed' ? (
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                            ) : (
+                              <Clock className="h-4 w-4 text-yellow-600" />
+                            )}
+                            <div>
+                              <p className="text-xs font-medium">{item.enquiryId}</p>
+                              <p className="text-xs text-muted-foreground">{item.enquiryDate}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {item.quotationId ? (
+                            <div className="flex items-center gap-2">
+                              {item.quotationStatus === 'accepted' ? (
+                                <CheckCircle className="h-4 w-4 text-green-600" />
+                              ) : item.quotationStatus === 'pending' ? (
+                                <Clock className="h-4 w-4 text-yellow-600" />
+                              ) : (
+                                <XCircle className="h-4 w-4 text-red-600" />
+                              )}
+                              <div>
+                                <p className="text-xs font-medium">{item.quotationId}</p>
+                                <p className="text-xs text-muted-foreground">AED {item.quotationValue?.toLocaleString()}</p>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {item.contractId ? (
+                            <div className="flex items-center gap-2">
+                              {item.contractStatus === 'completed' ? (
+                                <CheckCircle className="h-4 w-4 text-green-600" />
+                              ) : (
+                                <Activity className="h-4 w-4 text-blue-600" />
+                              )}
+                              <div>
+                                <p className="text-xs font-medium">{item.contractId}</p>
+                                <p className="text-xs text-muted-foreground">{item.contractDate}</p>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {item.feedbackScore ? (
+                            <div className="flex items-center gap-1">
+                              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                              <span className="text-sm font-medium">{item.feedbackScore}/5</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={getStatusBadgeVariant(item.stage)}>
+                            {item.stage}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-semibold">
+                          {item.contractValue ? `AED ${item.contractValue.toLocaleString()}` : '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" title="View Pipeline">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Documents Tab */}
+        <TabsContent value="documents" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Document Tracking Center</CardTitle>
+              <CardDescription>Monitor passports, licenses, IDs, and all customer documents</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {customers.map((customer) => (
+                  <div key={customer.id} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h4 className="font-semibold">{customer.name}</h4>
+                        <p className="text-sm text-muted-foreground">{customer.id} • {customer.contactPerson}</p>
+                      </div>
+                      <Button size="sm" onClick={() => handleDocumentUpload(customer)}>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload Document
+                      </Button>
+                    </div>
+
+                    {/* Key Document Summary */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                      <div className="bg-muted p-3 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Passport</p>
+                        <p className="text-sm font-medium">{customer.passportNumber}</p>
+                        <p className="text-xs text-muted-foreground">Exp: {customer.passportExpiry}</p>
+                      </div>
+                      <div className="bg-muted p-3 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Emirates ID</p>
+                        <p className="text-sm font-medium truncate">{customer.emiratesId}</p>
+                      </div>
+                      <div className="bg-muted p-3 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Trade License</p>
+                        <p className="text-sm font-medium">{customer.tradeLicense}</p>
+                        <p className="text-xs text-muted-foreground">Exp: {customer.licenseExpiry}</p>
+                      </div>
+                      <div className="bg-muted p-3 rounded-lg">
+                        <p className="text-xs text-muted-foreground">VAT Number</p>
+                        <p className="text-sm font-medium">{customer.vatNumber}</p>
+                      </div>
+                    </div>
+
+                    {/* Document List */}
+                    <div className="space-y-2">
+                      {customer.documents.map((doc, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                          <div className="flex items-center gap-3">
+                            <FileCheck className="h-4 w-4 text-muted-foreground" />
+                            <div>
+                              <p className="text-sm font-medium">{doc.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Uploaded: {doc.uploadDate} • Expires: {doc.expiryDate}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={getStatusBadgeVariant(doc.status)}>
+                              {doc.status}
+                            </Badge>
+                            <Button variant="ghost" size="icon">
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Performance Tab */}
+        <TabsContent value="performance" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Sales Metrics */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Sales Performance Metrics</CardTitle>
+                <CardDescription>Monthly conversion and revenue tracking</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {salesPerformance.map((month, idx) => (
+                    <div key={idx} className="border-b pb-3 last:border-0">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium">{month.month}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {month.conversionRate}% conversion
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-4 gap-2 text-center">
+                        <div className="bg-blue-50 p-2 rounded">
+                          <p className="text-xs text-muted-foreground">Enquiries</p>
+                          <p className="text-lg font-bold text-blue-600">{month.enquiries}</p>
+                        </div>
+                        <div className="bg-purple-50 p-2 rounded">
+                          <p className="text-xs text-muted-foreground">Quotations</p>
+                          <p className="text-lg font-bold text-purple-600">{month.quotations}</p>
+                        </div>
+                        <div className="bg-green-50 p-2 rounded">
+                          <p className="text-xs text-muted-foreground">Contracts</p>
+                          <p className="text-lg font-bold text-green-600">{month.contracts}</p>
+                        </div>
+                        <div className="bg-orange-50 p-2 rounded">
+                          <p className="text-xs text-muted-foreground">Revenue</p>
+                          <p className="text-lg font-bold text-orange-600">
+                            {(month.revenue / 1000).toFixed(0)}K
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Customer Satisfaction */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Customer Satisfaction Analysis</CardTitle>
+                <CardDescription>Feedback scores and satisfaction trends</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {customers.map((customer) => (
+                    <div key={customer.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{customer.name}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                className={`h-3 w-3 ${
+                                  star <= customer.satisfactionScore
+                                    ? 'fill-yellow-400 text-yellow-400'
+                                    : 'text-gray-300'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-sm font-medium">{customer.satisfactionScore}/5.0</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Projects</p>
+                        <p className="text-sm font-semibold">{customer.completedProjects}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-6 p-4 bg-green-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Award className="h-8 w-8 text-green-600" />
+                    <div>
+                      <p className="font-semibold text-green-800">Excellent Performance</p>
+                      <p className="text-sm text-green-700">
+                        Average satisfaction score of {getAverageSatisfaction()}/5.0 across all customers
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Top Customers */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Top Customers by Value</CardTitle>
+              <CardDescription>Highest value customers and their contribution</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {customers
+                  .sort((a, b) => b.totalValue - a.totalValue)
+                  .slice(0, 5)
+                  .map((customer, idx) => (
+                    <div key={customer.id} className="flex items-center gap-4 p-3 border rounded-lg">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold">
+                        {idx + 1}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium">{customer.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {customer.activeContracts} active contracts • {customer.completedProjects} completed
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold">AED {customer.totalValue.toLocaleString()}</p>
+                        <div className="flex items-center gap-1 justify-end">
+                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                          <span className="text-sm">{customer.satisfactionScore}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Customer Details Dialog */}
+      <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Customer Details</DialogTitle>
+            <DialogDescription>Complete customer profile and information</DialogDescription>
+          </DialogHeader>
+          {selectedCustomer && (
+            <div className="space-y-6">
+              {/* Basic Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Company Name</Label>
+                    <p className="font-medium">{selectedCustomer.name}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Contact Person</Label>
+                    <p className="font-medium">{selectedCustomer.contactPerson}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Email</Label>
+                    <p className="font-medium">{selectedCustomer.email}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Phone</Label>
+                    <p className="font-medium">{selectedCustomer.phone}</p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Location</Label>
+                    <p className="font-medium">{selectedCustomer.location}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Website</Label>
+                    <p className="font-medium">{selectedCustomer.website}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Company Type</Label>
+                    <p className="font-medium">{selectedCustomer.companyType}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Registration Date</Label>
+                    <p className="font-medium">{selectedCustomer.registrationDate}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Financial Info */}
+              <div className="border-t pt-4">
+                <h4 className="font-semibold mb-3">Financial Information</h4>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-muted p-3 rounded-lg">
+                    <Label className="text-xs text-muted-foreground">Total Value</Label>
+                    <p className="text-lg font-bold">AED {selectedCustomer.totalValue.toLocaleString()}</p>
+                  </div>
+                  <div className="bg-muted p-3 rounded-lg">
+                    <Label className="text-xs text-muted-foreground">Credit Limit</Label>
+                    <p className="text-lg font-bold">AED {selectedCustomer.creditLimit.toLocaleString()}</p>
+                  </div>
+                  <div className="bg-muted p-3 rounded-lg">
+                    <Label className="text-xs text-muted-foreground">Outstanding</Label>
+                    <p className="text-lg font-bold text-orange-600">AED {selectedCustomer.outstandingAmount.toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Project Stats */}
+              <div className="border-t pt-4">
+                <h4 className="font-semibold mb-3">Project Statistics</h4>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center p-3 border rounded-lg">
+                    <p className="text-2xl font-bold text-blue-600">{selectedCustomer.activeContracts}</p>
+                    <p className="text-sm text-muted-foreground">Active Contracts</p>
+                  </div>
+                  <div className="text-center p-3 border rounded-lg">
+                    <p className="text-2xl font-bold text-green-600">{selectedCustomer.completedProjects}</p>
+                    <p className="text-sm text-muted-foreground">Completed Projects</p>
+                  </div>
+                  <div className="text-center p-3 border rounded-lg">
+                    <div className="flex items-center justify-center gap-1">
+                      <Star className="h-6 w-6 fill-yellow-400 text-yellow-400" />
+                      <p className="text-2xl font-bold">{selectedCustomer.satisfactionScore}</p>
+                    </div>
+                    <p className="text-sm text-muted-foreground">Satisfaction Score</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Documents Dialog */}
+      <Dialog open={documentDialogOpen} onOpenChange={setDocumentDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Document Management</DialogTitle>
+            <DialogDescription>View and manage all customer documents</DialogDescription>
+          </DialogHeader>
+          {selectedCustomer && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                <div>
+                  <h4 className="font-semibold">{selectedCustomer.name}</h4>
+                  <p className="text-sm text-muted-foreground">{selectedCustomer.id}</p>
+                </div>
+                <Button>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload New Document
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                {selectedCustomer.documents.map((doc: any, idx: number) => (
+                  <div key={idx} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <FileCheck className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">{doc.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Type: {doc.type} • Uploaded: {doc.uploadDate}
+                          </p>
+                          <p className="text-sm text-muted-foreground">Expiry Date: {doc.expiryDate}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={getStatusBadgeVariant(doc.status)}>{doc.status}</Badge>
+                        <Button variant="outline" size="sm">
+                          <Download className="mr-2 h-4 w-4" />
+                          Download
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
