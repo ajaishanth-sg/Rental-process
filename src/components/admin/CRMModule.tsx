@@ -224,16 +224,154 @@ const salesPerformanceData = [
   { month: 'Oct 2024', enquiries: 32, quotations: 24, contracts: 16, revenue: 240000, conversionRate: 66.7 }
 ];
 
+// Leads data
+const leadsData = [
+  {
+    id: 'LEAD-001',
+    salutation: 'Mr',
+    firstName: 'Marcus',
+    lastName: 'Brown',
+    email: 'marcusb@tesla.com',
+    mobile: '+97166980887',
+    organization: 'Tesla India',
+    website: 'www.tesla.com',
+    jobTitle: 'Procurement Manager',
+    industry: 'Automotive',
+    source: 'LinkedIn',
+    status: 'New',
+    assignedTo: 'Shariq Ansari',
+    gender: 'Male',
+    noOfEmployees: '10000+',
+    annualRevenue: 50000000,
+    territory: 'India',
+    createdAt: '2025-01-20',
+    leadOwner: 'Shariq Ansari',
+    activities: [
+      { type: 'created', description: 'Lead created', by: 'Shariq Ansari', timestamp: '2025-01-20 10:00:00' }
+    ]
+  },
+  {
+    id: 'LEAD-002',
+    salutation: 'Mr',
+    firstName: 'Jabari',
+    lastName: 'Beard',
+    email: 'jabari.beard@outlook.com',
+    mobile: '+919867959525',
+    organization: 'Shriram Finance',
+    website: 'www.shriramfinance.in',
+    jobTitle: 'Product Manager',
+    industry: 'Finance',
+    source: 'LinkedIn',
+    status: 'New',
+    assignedTo: 'Shariq Ansari',
+    gender: 'Male',
+    noOfEmployees: '1000-5000',
+    annualRevenue: 5000000,
+    territory: 'India',
+    createdAt: '2025-01-19',
+    leadOwner: 'Shariq Ansari',
+    activities: []
+  },
+  {
+    id: 'LEAD-003',
+    salutation: 'Mrs',
+    firstName: 'Marie',
+    lastName: 'Everett',
+    email: 'marie.everett@outloo.com',
+    mobile: '+919867959492',
+    organization: 'TVS Motor Company',
+    website: 'www.tvsmotor.com',
+    jobTitle: 'Founder',
+    industry: 'Automotive',
+    source: 'Facebook',
+    status: 'New',
+    assignedTo: 'Asif Mula',
+    gender: 'Female',
+    noOfEmployees: '5000-10000',
+    annualRevenue: 10000000,
+    territory: 'India',
+    createdAt: '2025-01-18',
+    leadOwner: 'Asif Mula',
+    activities: []
+  },
+  {
+    id: 'LEAD-004',
+    salutation: 'Ms',
+    firstName: 'Bessie',
+    lastName: 'Cooper',
+    email: 'bessiecooper@merce.com',
+    mobile: '+1 (480) 555-2998',
+    organization: 'Mercedes Benz',
+    website: 'www.mercedes-benz.com',
+    jobTitle: 'Admin',
+    industry: 'Automotive',
+    source: 'Advertisement',
+    status: 'Qualified',
+    assignedTo: 'Ankush Nehe',
+    gender: 'Female',
+    noOfEmployees: '50000+',
+    annualRevenue: 80000000,
+    territory: 'USA',
+    createdAt: '2025-01-15',
+    leadOwner: 'Ankush Nehe',
+    activities: []
+  },
+  {
+    id: 'LEAD-005',
+    salutation: 'Mr',
+    firstName: 'Kobe',
+    lastName: 'Barron',
+    email: 'kobe.barron@outlook.com',
+    mobile: '+919867959495',
+    organization: 'Ultratech Cement',
+    website: 'www.ultratechcement.com',
+    jobTitle: 'Product Manager',
+    industry: 'Construction',
+    source: 'Others',
+    status: 'New',
+    assignedTo: 'Shariq Ansari',
+    gender: 'Male',
+    noOfEmployees: '10000+',
+    annualRevenue: 15000000,
+    territory: 'India',
+    createdAt: '2025-01-14',
+    leadOwner: 'Shariq Ansari',
+    activities: []
+  }
+];
+
 export const CRMModule = () => {
   const [customers, setCustomers] = useState(customersData);
   const [pipeline, setPipeline] = useState(pipelineData);
   const [salesPerformance, setSalesPerformance] = useState(salesPerformanceData);
+  const [leads, setLeads] = useState(leadsData);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [selectedLead, setSelectedLead] = useState<any>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [leadDetailsDialogOpen, setLeadDetailsDialogOpen] = useState(false);
+  const [createLeadDialogOpen, setCreateLeadDialogOpen] = useState(false);
   const [documentDialogOpen, setDocumentDialogOpen] = useState(false);
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [newLead, setNewLead] = useState({
+    salutation: 'Mr',
+    firstName: '',
+    lastName: '',
+    email: '',
+    mobile: '',
+    organization: '',
+    website: '',
+    jobTitle: '',
+    industry: '',
+    source: '',
+    status: 'New',
+    gender: 'Male',
+    noOfEmployees: '',
+    annualRevenue: 0,
+    territory: '',
+    leadOwner: 'Shariq Ansari'
+  });
   const { toast } = useToast();
 
   const getStatusColor = (status: string) => {
@@ -323,6 +461,93 @@ export const CRMModule = () => {
     customer.id.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const filteredLeads = leads.filter(lead =>
+    `${lead.firstName} ${lead.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    lead.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    lead.organization.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    lead.id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleCreateLead = () => {
+    if (!newLead.firstName || !newLead.email) {
+      toast({
+        title: 'Error',
+        description: 'First name and email are required.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const leadCount = leads.length;
+    const lead = {
+      ...newLead,
+      id: `LEAD-${String(leadCount + 1).padStart(3, '0')}`,
+      createdAt: new Date().toISOString().split('T')[0],
+      assignedTo: newLead.leadOwner,
+      activities: [
+        {
+          type: 'created',
+          description: 'Lead created',
+          by: newLead.leadOwner,
+          timestamp: new Date().toLocaleString()
+        }
+      ]
+    };
+
+    setLeads([...leads, lead]);
+    setCreateLeadDialogOpen(false);
+    setNewLead({
+      salutation: 'Mr',
+      firstName: '',
+      lastName: '',
+      email: '',
+      mobile: '',
+      organization: '',
+      website: '',
+      jobTitle: '',
+      industry: '',
+      source: '',
+      status: 'New',
+      gender: 'Male',
+      noOfEmployees: '',
+      annualRevenue: 0,
+      territory: '',
+      leadOwner: 'Shariq Ansari'
+    });
+
+    toast({
+      title: '✅ Lead Created',
+      description: `${lead.firstName} ${lead.lastName} has been added to leads.`,
+    });
+  };
+
+  const handleViewLeadDetails = (lead: any) => {
+    setSelectedLead(lead);
+    setLeadDetailsDialogOpen(true);
+  };
+
+  const handleUpdateLeadStatus = (leadId: string, newStatus: string) => {
+    setLeads(leads.map(lead =>
+      lead.id === leadId ? { ...lead, status: newStatus } : lead
+    ));
+
+    toast({
+      title: '✅ Status Updated',
+      description: `Lead status updated to ${newStatus}.`,
+    });
+  };
+
+  const getLeadStatusBadge = (status: string) => {
+    const variants: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
+      'New': 'default',
+      'Qualified': 'default',
+      'Nurture': 'secondary',
+      'Junk': 'destructive',
+      'Unqualified': 'destructive'
+    };
+    return variants[status] || 'outline';
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -392,8 +617,9 @@ export const CRMModule = () => {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="leads">Leads</TabsTrigger>
           <TabsTrigger value="customers">Customers</TabsTrigger>
           <TabsTrigger value="pipeline">Sales Pipeline</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
@@ -492,6 +718,518 @@ export const CRMModule = () => {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        {/* Leads Tab */}
+        <TabsContent value="leads" className="space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search leads by name, email, organization..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Dialog open={createLeadDialogOpen} onOpenChange={setCreateLeadDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Lead
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Create Lead</DialogTitle>
+                  <DialogDescription>Add a new lead to the CRM system</DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Row 1 */}
+                  <div className="space-y-2">
+                    <Label>Salutation</Label>
+                    <Select value={newLead.salutation} onValueChange={(value) => setNewLead({...newLead, salutation: value})}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Mr">Mr</SelectItem>
+                        <SelectItem value="Mrs">Mrs</SelectItem>
+                        <SelectItem value="Ms">Ms</SelectItem>
+                        <SelectItem value="Dr">Dr</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>First Name *</Label>
+                    <Input
+                      value={newLead.firstName}
+                      onChange={(e) => setNewLead({...newLead, firstName: e.target.value})}
+                      placeholder="John"
+                    />
+                  </div>
+
+                  {/* Row 2 */}
+                  <div className="space-y-2">
+                    <Label>Last Name</Label>
+                    <Input
+                      value={newLead.lastName}
+                      onChange={(e) => setNewLead({...newLead, lastName: e.target.value})}
+                      placeholder="Doe"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Email *</Label>
+                    <Input
+                      type="email"
+                      value={newLead.email}
+                      onChange={(e) => setNewLead({...newLead, email: e.target.value})}
+                      placeholder="john@doe.com"
+                    />
+                  </div>
+
+                  {/* Row 3 */}
+                  <div className="space-y-2">
+                    <Label>Mobile No</Label>
+                    <Input
+                      value={newLead.mobile}
+                      onChange={(e) => setNewLead({...newLead, mobile: e.target.value})}
+                      placeholder="+91 9876543210"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Gender</Label>
+                    <Select value={newLead.gender} onValueChange={(value) => setNewLead({...newLead, gender: value})}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Male">Male</SelectItem>
+                        <SelectItem value="Female">Female</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Row 4 */}
+                  <div className="space-y-2">
+                    <Label>Organization</Label>
+                    <Input
+                      value={newLead.organization}
+                      onChange={(e) => setNewLead({...newLead, organization: e.target.value})}
+                      placeholder="Frappe Technologies"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Website</Label>
+                    <Input
+                      value={newLead.website}
+                      onChange={(e) => setNewLead({...newLead, website: e.target.value})}
+                      placeholder="https://frappe.io"
+                    />
+                  </div>
+
+                  {/* Row 5 */}
+                  <div className="space-y-2">
+                    <Label>Job Title</Label>
+                    <Input
+                      value={newLead.jobTitle}
+                      onChange={(e) => setNewLead({...newLead, jobTitle: e.target.value})}
+                      placeholder="Product Manager"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>No of Employees</Label>
+                    <Select value={newLead.noOfEmployees} onValueChange={(value) => setNewLead({...newLead, noOfEmployees: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select range" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1-10">1-10</SelectItem>
+                        <SelectItem value="11-50">11-50</SelectItem>
+                        <SelectItem value="51-200">51-200</SelectItem>
+                        <SelectItem value="201-500">201-500</SelectItem>
+                        <SelectItem value="501-1000">501-1000</SelectItem>
+                        <SelectItem value="1000-5000">1000-5000</SelectItem>
+                        <SelectItem value="5000-10000">5000-10000</SelectItem>
+                        <SelectItem value="10000+">10000+</SelectItem>
+                        <SelectItem value="50000+">50000+</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Row 6 */}
+                  <div className="space-y-2">
+                    <Label>Territory</Label>
+                    <Select value={newLead.territory} onValueChange={(value) => setNewLead({...newLead, territory: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select territory" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="India">India</SelectItem>
+                        <SelectItem value="USA">USA</SelectItem>
+                        <SelectItem value="UAE">UAE</SelectItem>
+                        <SelectItem value="UK">UK</SelectItem>
+                        <SelectItem value="Singapore">Singapore</SelectItem>
+                        <SelectItem value="Australia">Australia</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Annual Revenue</Label>
+                    <Input
+                      type="number"
+                      value={newLead.annualRevenue}
+                      onChange={(e) => setNewLead({...newLead, annualRevenue: Number(e.target.value)})}
+                      placeholder="1000000"
+                    />
+                  </div>
+
+                  {/* Row 7 */}
+                  <div className="space-y-2">
+                    <Label>Industry</Label>
+                    <Select value={newLead.industry} onValueChange={(value) => setNewLead({...newLead, industry: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select industry" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Technology">Technology</SelectItem>
+                        <SelectItem value="Construction">Construction</SelectItem>
+                        <SelectItem value="Automotive">Automotive</SelectItem>
+                        <SelectItem value="Finance">Finance</SelectItem>
+                        <SelectItem value="Healthcare">Healthcare</SelectItem>
+                        <SelectItem value="Manufacturing">Manufacturing</SelectItem>
+                        <SelectItem value="Retail">Retail</SelectItem>
+                        <SelectItem value="Education">Education</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Source</Label>
+                    <Select value={newLead.source} onValueChange={(value) => setNewLead({...newLead, source: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select source" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="LinkedIn">LinkedIn</SelectItem>
+                        <SelectItem value="Facebook">Facebook</SelectItem>
+                        <SelectItem value="Google">Google</SelectItem>
+                        <SelectItem value="Advertisement">Advertisement</SelectItem>
+                        <SelectItem value="Web">Web</SelectItem>
+                        <SelectItem value="Youtube">Youtube</SelectItem>
+                        <SelectItem value="Others">Others</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Row 8 */}
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select value={newLead.status} onValueChange={(value) => setNewLead({...newLead, status: value})}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="New">New</SelectItem>
+                        <SelectItem value="Qualified">Qualified</SelectItem>
+                        <SelectItem value="Nurture">Nurture</SelectItem>
+                        <SelectItem value="Junk">Junk</SelectItem>
+                        <SelectItem value="Unqualified">Unqualified</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Lead Owner</Label>
+                    <Select value={newLead.leadOwner} onValueChange={(value) => setNewLead({...newLead, leadOwner: value})}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Shariq Ansari">Shariq Ansari</SelectItem>
+                        <SelectItem value="Asif Mula">Asif Mula</SelectItem>
+                        <SelectItem value="Ankush Nehe">Ankush Nehe</SelectItem>
+                        <SelectItem value="Suraj Sharma">Suraj Sharma</SelectItem>
+                        <SelectItem value="Faris Ansari">Faris Ansari</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 mt-4">
+                  <Button variant="outline" onClick={() => setCreateLeadDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleCreateLead}>
+                    Create Lead
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Leads</CardTitle>
+              <CardDescription>Manage and track your sales leads</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Organization</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Source</TableHead>
+                      <TableHead>Job Title</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Mobile No</TableHead>
+                      <TableHead>Assigned To</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredLeads.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={9} className="text-center text-muted-foreground">
+                          No leads found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredLeads.map((lead) => (
+                        <TableRow key={lead.id}>
+                          <TableCell>
+                            <div className="font-medium">
+                              {lead.salutation} {lead.firstName} {lead.lastName}
+                            </div>
+                            <div className="text-xs text-muted-foreground">{lead.id}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Building2 className="h-4 w-4 text-muted-foreground" />
+                              {lead.organization}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={getLeadStatusBadge(lead.status)}>
+                              {lead.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{lead.source}</TableCell>
+                          <TableCell>{lead.jobTitle}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Mail className="h-4 w-4 text-muted-foreground" />
+                              {lead.email}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Phone className="h-4 w-4 text-muted-foreground" />
+                              {lead.mobile}
+                            </div>
+                          </TableCell>
+                          <TableCell>{lead.assignedTo}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex gap-1 justify-end">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="View Details"
+                                onClick={() => handleViewLeadDetails(lead)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Edit Lead"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Lead Details Dialog */}
+          <Dialog open={leadDetailsDialogOpen} onOpenChange={setLeadDetailsDialogOpen}>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {selectedLead?.salutation} {selectedLead?.firstName} {selectedLead?.lastName}
+                </DialogTitle>
+                <DialogDescription>{selectedLead?.id}</DialogDescription>
+              </DialogHeader>
+              {selectedLead && (
+                <div className="space-y-6">
+                  {/* Activity Section */}
+                  <div className="space-y-3">
+                    <h4 className="font-semibold flex items-center gap-2">
+                      <Activity className="h-4 w-4" />
+                      Activity
+                    </h4>
+                    <div className="space-y-2">
+                      {selectedLead.activities && selectedLead.activities.length > 0 ? (
+                        selectedLead.activities.map((activity: any, idx: number) => (
+                          <div key={idx} className="flex items-start gap-3 text-sm border-l-2 pl-3 py-2">
+                            <UserCheck className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                            <div>
+                              <p className="font-medium">{activity.description}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {activity.by} • {activity.timestamp}
+                              </p>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No activities yet</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Details Section */}
+                  <div className="space-y-3">
+                    <h4 className="font-semibold">Details</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Organization</p>
+                        <p className="font-medium flex items-center gap-2">
+                          <Building2 className="h-4 w-4" />
+                          {selectedLead.organization}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Website</p>
+                        <p className="font-medium flex items-center gap-2">
+                          <Globe className="h-4 w-4" />
+                          {selectedLead.website}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Industry</p>
+                        <p className="font-medium">{selectedLead.industry}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Job Title</p>
+                        <p className="font-medium">{selectedLead.jobTitle}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Source</p>
+                        <p className="font-medium">{selectedLead.source}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Lead Owner</p>
+                        <p className="font-medium flex items-center gap-2">
+                          <UserCheck className="h-4 w-4" />
+                          {selectedLead.leadOwner}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Person Section */}
+                  <div className="space-y-3">
+                    <h4 className="font-semibold">Person</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Salutation</p>
+                        <p className="font-medium">{selectedLead.salutation}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">First Name</p>
+                        <p className="font-medium">{selectedLead.firstName}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Last Name</p>
+                        <p className="font-medium">{selectedLead.lastName}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Email</p>
+                        <p className="font-medium flex items-center gap-2">
+                          <Mail className="h-4 w-4" />
+                          {selectedLead.email}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Mobile No</p>
+                        <p className="font-medium flex items-center gap-2">
+                          <Phone className="h-4 w-4" />
+                          {selectedLead.mobile}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Gender</p>
+                        <p className="font-medium">{selectedLead.gender}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Additional Information */}
+                  <div className="space-y-3">
+                    <h4 className="font-semibold">Additional Information</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">No of Employees</p>
+                        <p className="font-medium">{selectedLead.noOfEmployees}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Annual Revenue</p>
+                        <p className="font-medium">
+                          {selectedLead.annualRevenue ? `$${selectedLead.annualRevenue.toLocaleString()}` : 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Territory</p>
+                        <p className="font-medium flex items-center gap-2">
+                          <MapPin className="h-4 w-4" />
+                          {selectedLead.territory}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Status</p>
+                        <Badge variant={getLeadStatusBadge(selectedLead.status)}>
+                          {selectedLead.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2 pt-4 border-t">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleUpdateLeadStatus(selectedLead.id, 'Qualified')}
+                      disabled={selectedLead.status === 'Qualified'}
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Mark as Qualified
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleUpdateLeadStatus(selectedLead.id, 'Junk')}
+                      disabled={selectedLead.status === 'Junk'}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Mark as Junk
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      Add Note
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* Customers Tab */}
