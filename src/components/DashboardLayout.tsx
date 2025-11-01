@@ -62,7 +62,10 @@ const roleMenuItems = {
     { title: 'Sales Orders', icon: Package, path: '/sales', tab: 'sales-orders' },
     { title: 'Contracts', icon: FileText, path: '/sales', tab: 'contracts' },
     { title: 'Customers', icon: Users, path: '/sales', tab: 'customers' },
+<<<<<<< HEAD
     { title: 'CRM', icon: UserCheck, path: '/sales', tab: 'crm' },
+=======
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
     { title: 'Communication', icon: Building2, path: '/sales', tab: 'communication' },
     { title: 'Reports', icon: BarChart3, path: '/sales', tab: 'reports' },
   ],

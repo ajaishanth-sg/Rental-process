@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
+<<<<<<< HEAD
 import {
   Users,
   FileText,
@@ -21,6 +22,18 @@ import {
   MapPin,
   Calendar,
   Upload,
+=======
+import { 
+  Users, 
+  FileText, 
+  TrendingUp, 
+  Star, 
+  Mail, 
+  Phone, 
+  MapPin, 
+  Calendar, 
+  Upload, 
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
   Download,
   Eye,
   CheckCircle,
@@ -48,8 +61,12 @@ import {
   Link2,
   ArrowRight,
   CheckSquare,
+<<<<<<< HEAD
   Circle,
   UserCircle2,
+=======
+  Circle
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import * as crmService from '@/services/crmService';
@@ -236,6 +253,7 @@ const salesPerformanceData = [
   { month: 'Oct 2024', enquiries: 32, quotations: 24, contracts: 16, revenue: 240000, conversionRate: 66.7 }
 ];
 
+<<<<<<< HEAD
 type LeadFormData = {
   salutation: string;
   firstName: string;
@@ -293,6 +311,8 @@ const mapLeadToFormData = (lead: any): LeadFormData => ({
   leadOwner: lead?.leadOwner || 'Shariq Ansari',
 });
 
+=======
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
 export const CRMModule = () => {
   const [customers, setCustomers] = useState(customersData);
   const [pipeline, setPipeline] = useState(pipelineData);
@@ -307,11 +327,32 @@ export const CRMModule = () => {
   const [documentDialogOpen, setDocumentDialogOpen] = useState(false);
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+<<<<<<< HEAD
   const [newLead, setNewLead] = useState<LeadFormData>(getDefaultLeadForm());
   const [editLeadData, setEditLeadData] = useState<LeadFormData>(getDefaultLeadForm());
   const [editLeadDialogOpen, setEditLeadDialogOpen] = useState(false);
   const [leadToEdit, setLeadToEdit] = useState<any>(null);
   const [isLoadingLeadForEdit, setIsLoadingLeadForEdit] = useState(false);
+=======
+  const [newLead, setNewLead] = useState({
+    salutation: 'Mr',
+    firstName: '',
+    lastName: '',
+    email: '',
+    mobile: '',
+    organization: '',
+    website: '',
+    jobTitle: '',
+    industry: '',
+    source: '',
+    status: 'New',
+    gender: 'Male',
+    noOfEmployees: '',
+    annualRevenue: 0,
+    territory: '',
+    leadOwner: 'Shariq Ansari'
+  });
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
 
   // Additional state for enhanced CRM features
   const [convertToDealDialogOpen, setConvertToDealDialogOpen] = useState(false);
@@ -324,7 +365,11 @@ export const CRMModule = () => {
   const [callDuration, setCallDuration] = useState(0);
   const [chooseExistingOrg, setChooseExistingOrg] = useState(true);
   const [chooseExistingContact, setChooseExistingContact] = useState(false);
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
   const [emailData, setEmailData] = useState({
     to: '',
     cc: '',
@@ -352,7 +397,10 @@ export const CRMModule = () => {
   const [leadTasks, setLeadTasks] = useState<any[]>([]);
   const [leadNotes, setLeadNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+<<<<<<< HEAD
   const [isUpdatingLead, setIsUpdatingLead] = useState(false);
+=======
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
 
   const { toast } = useToast();
 
@@ -517,9 +565,32 @@ export const CRMModule = () => {
       console.log('Creating lead:', newLead);
       const result = await crmService.createLead(newLead);
       console.log('Lead created:', result);
+<<<<<<< HEAD
 
       setCreateLeadDialogOpen(false);
       setNewLead(getDefaultLeadForm());
+=======
+      
+      setCreateLeadDialogOpen(false);
+      setNewLead({
+        salutation: 'Mr',
+        firstName: '',
+        lastName: '',
+        email: '',
+        mobile: '',
+        organization: '',
+        website: '',
+        jobTitle: '',
+        industry: '',
+        source: '',
+        status: 'New',
+        gender: 'Male',
+        noOfEmployees: '',
+        annualRevenue: 0,
+        territory: '',
+        leadOwner: 'Shariq Ansari'
+      });
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
 
       toast({
         title: '✅ Lead Created',
@@ -540,6 +611,7 @@ export const CRMModule = () => {
     }
   };
 
+<<<<<<< HEAD
   const handleStartEditLead = async (lead: any) => {
     const leadIdentifier = lead?.lead_id || lead?.id;
     if (!leadIdentifier) {
@@ -626,6 +698,8 @@ export const CRMModule = () => {
     }
   };
 
+=======
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
   const handleViewLeadDetails = (lead: any) => {
     setSelectedLead(lead);
     setLeadDetailsDialogOpen(true);
@@ -642,7 +716,11 @@ export const CRMModule = () => {
 
       // Refresh leads
       await fetchLeads();
+<<<<<<< HEAD
 
+=======
+      
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
       // Refresh selected lead details
       if (selectedLead && selectedLead.lead_id === leadId) {
         const updatedLead = await crmService.getLead(leadId);
@@ -684,7 +762,11 @@ export const CRMModule = () => {
     setCallDuration(0);
     setIsCallActive(true);
     setCallDialogOpen(true);
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
     toast({
       title: '📞 Calling...',
       description: `Initiating call to ${selectedLead.firstName} ${selectedLead.lastName}`,
@@ -693,7 +775,11 @@ export const CRMModule = () => {
 
   const handleEndCall = async () => {
     if (!selectedLead) return;
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
     try {
       await crmService.logCall({
         leadId: selectedLead.lead_id,
@@ -1084,7 +1170,11 @@ export const CRMModule = () => {
                   {/* Row 1 */}
                   <div className="space-y-2">
                     <Label>Salutation</Label>
+<<<<<<< HEAD
                     <Select value={newLead.salutation} onValueChange={(value) => setNewLead({ ...newLead, salutation: value })}>
+=======
+                    <Select value={newLead.salutation} onValueChange={(value) => setNewLead({...newLead, salutation: value})}>
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -1100,7 +1190,11 @@ export const CRMModule = () => {
                     <Label>First Name *</Label>
                     <Input
                       value={newLead.firstName}
+<<<<<<< HEAD
                       onChange={(e) => setNewLead({ ...newLead, firstName: e.target.value })}
+=======
+                      onChange={(e) => setNewLead({...newLead, firstName: e.target.value})}
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                       placeholder="John"
                     />
                   </div>
@@ -1110,7 +1204,11 @@ export const CRMModule = () => {
                     <Label>Last Name</Label>
                     <Input
                       value={newLead.lastName}
+<<<<<<< HEAD
                       onChange={(e) => setNewLead({ ...newLead, lastName: e.target.value })}
+=======
+                      onChange={(e) => setNewLead({...newLead, lastName: e.target.value})}
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                       placeholder="Doe"
                     />
                   </div>
@@ -1119,7 +1217,11 @@ export const CRMModule = () => {
                     <Input
                       type="email"
                       value={newLead.email}
+<<<<<<< HEAD
                       onChange={(e) => setNewLead({ ...newLead, email: e.target.value })}
+=======
+                      onChange={(e) => setNewLead({...newLead, email: e.target.value})}
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                       placeholder="john@doe.com"
                     />
                   </div>
@@ -1129,13 +1231,21 @@ export const CRMModule = () => {
                     <Label>Mobile No</Label>
                     <Input
                       value={newLead.mobile}
+<<<<<<< HEAD
                       onChange={(e) => setNewLead({ ...newLead, mobile: e.target.value })}
+=======
+                      onChange={(e) => setNewLead({...newLead, mobile: e.target.value})}
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                       placeholder="+91 9876543210"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>Gender</Label>
+<<<<<<< HEAD
                     <Select value={newLead.gender} onValueChange={(value) => setNewLead({ ...newLead, gender: value })}>
+=======
+                    <Select value={newLead.gender} onValueChange={(value) => setNewLead({...newLead, gender: value})}>
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -1152,7 +1262,11 @@ export const CRMModule = () => {
                     <Label>Organization</Label>
                     <Input
                       value={newLead.organization}
+<<<<<<< HEAD
                       onChange={(e) => setNewLead({ ...newLead, organization: e.target.value })}
+=======
+                      onChange={(e) => setNewLead({...newLead, organization: e.target.value})}
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                       placeholder="Frappe Technologies"
                     />
                   </div>
@@ -1160,7 +1274,11 @@ export const CRMModule = () => {
                     <Label>Website</Label>
                     <Input
                       value={newLead.website}
+<<<<<<< HEAD
                       onChange={(e) => setNewLead({ ...newLead, website: e.target.value })}
+=======
+                      onChange={(e) => setNewLead({...newLead, website: e.target.value})}
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                       placeholder="https://frappe.io"
                     />
                   </div>
@@ -1170,13 +1288,21 @@ export const CRMModule = () => {
                     <Label>Job Title</Label>
                     <Input
                       value={newLead.jobTitle}
+<<<<<<< HEAD
                       onChange={(e) => setNewLead({ ...newLead, jobTitle: e.target.value })}
+=======
+                      onChange={(e) => setNewLead({...newLead, jobTitle: e.target.value})}
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                       placeholder="Product Manager"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>No of Employees</Label>
+<<<<<<< HEAD
                     <Select value={newLead.noOfEmployees} onValueChange={(value) => setNewLead({ ...newLead, noOfEmployees: value })}>
+=======
+                    <Select value={newLead.noOfEmployees} onValueChange={(value) => setNewLead({...newLead, noOfEmployees: value})}>
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                       <SelectTrigger>
                         <SelectValue placeholder="Select range" />
                       </SelectTrigger>
@@ -1197,7 +1323,11 @@ export const CRMModule = () => {
                   {/* Row 6 */}
                   <div className="space-y-2">
                     <Label>Territory</Label>
+<<<<<<< HEAD
                     <Select value={newLead.territory} onValueChange={(value) => setNewLead({ ...newLead, territory: value })}>
+=======
+                    <Select value={newLead.territory} onValueChange={(value) => setNewLead({...newLead, territory: value})}>
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                       <SelectTrigger>
                         <SelectValue placeholder="Select territory" />
                       </SelectTrigger>
@@ -1216,7 +1346,11 @@ export const CRMModule = () => {
                     <Input
                       type="number"
                       value={newLead.annualRevenue}
+<<<<<<< HEAD
                       onChange={(e) => setNewLead({ ...newLead, annualRevenue: Number(e.target.value) })}
+=======
+                      onChange={(e) => setNewLead({...newLead, annualRevenue: Number(e.target.value)})}
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                       placeholder="1000000"
                     />
                   </div>
@@ -1224,7 +1358,11 @@ export const CRMModule = () => {
                   {/* Row 7 */}
                   <div className="space-y-2">
                     <Label>Industry</Label>
+<<<<<<< HEAD
                     <Select value={newLead.industry} onValueChange={(value) => setNewLead({ ...newLead, industry: value })}>
+=======
+                    <Select value={newLead.industry} onValueChange={(value) => setNewLead({...newLead, industry: value})}>
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                       <SelectTrigger>
                         <SelectValue placeholder="Select industry" />
                       </SelectTrigger>
@@ -1242,7 +1380,11 @@ export const CRMModule = () => {
                   </div>
                   <div className="space-y-2">
                     <Label>Source</Label>
+<<<<<<< HEAD
                     <Select value={newLead.source} onValueChange={(value) => setNewLead({ ...newLead, source: value })}>
+=======
+                    <Select value={newLead.source} onValueChange={(value) => setNewLead({...newLead, source: value})}>
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                       <SelectTrigger>
                         <SelectValue placeholder="Select source" />
                       </SelectTrigger>
@@ -1261,7 +1403,11 @@ export const CRMModule = () => {
                   {/* Row 8 */}
                   <div className="space-y-2">
                     <Label>Status</Label>
+<<<<<<< HEAD
                     <Select value={newLead.status} onValueChange={(value) => setNewLead({ ...newLead, status: value })}>
+=======
+                    <Select value={newLead.status} onValueChange={(value) => setNewLead({...newLead, status: value})}>
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -1276,7 +1422,11 @@ export const CRMModule = () => {
                   </div>
                   <div className="space-y-2">
                     <Label>Lead Owner</Label>
+<<<<<<< HEAD
                     <Select value={newLead.leadOwner} onValueChange={(value) => setNewLead({ ...newLead, leadOwner: value })}>
+=======
+                    <Select value={newLead.leadOwner} onValueChange={(value) => setNewLead({...newLead, leadOwner: value})}>
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -1300,6 +1450,7 @@ export const CRMModule = () => {
                 </div>
               </DialogContent>
             </Dialog>
+<<<<<<< HEAD
 
             <Dialog
               open={editLeadDialogOpen}
@@ -1547,6 +1698,8 @@ export const CRMModule = () => {
                 </div>
               </DialogContent>
             </Dialog>
+=======
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
           </div>
 
           <Card>
@@ -1613,21 +1766,33 @@ export const CRMModule = () => {
                           </TableCell>
                           <TableCell>{lead.assignedTo}</TableCell>
                           <TableCell className="text-right">
+<<<<<<< HEAD
                             <div className="flex gap-2 justify-end items-center">
+=======
+                            <div className="flex gap-1 justify-end">
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 title="View Details"
                                 onClick={() => handleViewLeadDetails(lead)}
+<<<<<<< HEAD
                                 className="h-9 w-9 rounded-full border border-muted-foreground/10 bg-muted"
                               >
                                 <UserCircle2 className="h-4 w-4 text-muted-foreground" />
+=======
+                              >
+                                <Eye className="h-4 w-4" />
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 title="Edit Lead"
+<<<<<<< HEAD
                                 onClick={() => handleStartEditLead(lead)}
+=======
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
@@ -1707,7 +1872,11 @@ export const CRMModule = () => {
                         {/* Emails Tab */}
                         <TabsContent value="emails" className="mt-0">
                           <div className="space-y-4">
+<<<<<<< HEAD
                             <Button onClick={() => { setEmailData({ ...emailData, to: selectedLead.email, subject: `${selectedLead.firstName} ${selectedLead.lastName} (#${selectedLead.id})` }); setEmailComposerOpen(true); }}>
+=======
+                            <Button onClick={() => { setEmailData({...emailData, to: selectedLead.email, subject: `${selectedLead.firstName} ${selectedLead.lastName} (#${selectedLead.id})`}); setEmailComposerOpen(true); }}>
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                               <Mail className="h-4 w-4 mr-2" />
                               New Email
                             </Button>
@@ -1883,7 +2052,11 @@ export const CRMModule = () => {
                           <Button size="icon" variant="outline" onClick={handleMakeCall}>
                             <Phone className="h-4 w-4" />
                           </Button>
+<<<<<<< HEAD
                           <Button size="icon" variant="outline" onClick={() => { setEmailData({ ...emailData, to: selectedLead.email }); setEmailComposerOpen(true); }}>
+=======
+                          <Button size="icon" variant="outline" onClick={() => { setEmailData({...emailData, to: selectedLead.email}); setEmailComposerOpen(true); }}>
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                             <Mail className="h-4 w-4" />
                           </Button>
                           <Button size="icon" variant="outline">
@@ -2299,10 +2472,18 @@ export const CRMModule = () => {
                             {[1, 2, 3, 4, 5].map((star) => (
                               <Star
                                 key={star}
+<<<<<<< HEAD
                                 className={`h-3 w-3 ${star <= customer.satisfactionScore
                                   ? 'fill-yellow-400 text-yellow-400'
                                   : 'text-gray-300'
                                   }`}
+=======
+                                className={`h-3 w-3 ${
+                                  star <= customer.satisfactionScore
+                                    ? 'fill-yellow-400 text-yellow-400'
+                                    : 'text-gray-300'
+                                }`}
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                               />
                             ))}
                           </div>
@@ -2591,7 +2772,11 @@ export const CRMModule = () => {
               <Label>SUBJECT:</Label>
               <Input
                 value={emailData.subject}
+<<<<<<< HEAD
                 onChange={(e) => setEmailData({ ...emailData, subject: e.target.value })}
+=======
+                onChange={(e) => setEmailData({...emailData, subject: e.target.value})}
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                 placeholder="Subject"
               />
             </div>
@@ -2599,7 +2784,11 @@ export const CRMModule = () => {
               <Label>TO:</Label>
               <Input
                 value={emailData.to}
+<<<<<<< HEAD
                 onChange={(e) => setEmailData({ ...emailData, to: e.target.value })}
+=======
+                onChange={(e) => setEmailData({...emailData, to: e.target.value})}
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                 placeholder="recipient@email.com"
               />
             </div>
@@ -2608,7 +2797,11 @@ export const CRMModule = () => {
                 <Label>CC:</Label>
                 <Input
                   value={emailData.cc}
+<<<<<<< HEAD
                   onChange={(e) => setEmailData({ ...emailData, cc: e.target.value })}
+=======
+                  onChange={(e) => setEmailData({...emailData, cc: e.target.value})}
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                   placeholder="CC"
                 />
               </div>
@@ -2616,7 +2809,11 @@ export const CRMModule = () => {
                 <Label>BCC:</Label>
                 <Input
                   value={emailData.bcc}
+<<<<<<< HEAD
                   onChange={(e) => setEmailData({ ...emailData, bcc: e.target.value })}
+=======
+                  onChange={(e) => setEmailData({...emailData, bcc: e.target.value})}
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                   placeholder="BCC"
                 />
               </div>
@@ -2625,7 +2822,11 @@ export const CRMModule = () => {
               <Label>Message:</Label>
               <Textarea
                 value={emailData.body}
+<<<<<<< HEAD
                 onChange={(e) => setEmailData({ ...emailData, body: e.target.value })}
+=======
+                onChange={(e) => setEmailData({...emailData, body: e.target.value})}
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                 placeholder="Type your message here..."
                 rows={8}
               />
@@ -2696,7 +2897,11 @@ export const CRMModule = () => {
               <Label>Title</Label>
               <Input
                 value={taskData.title}
+<<<<<<< HEAD
                 onChange={(e) => setTaskData({ ...taskData, title: e.target.value })}
+=======
+                onChange={(e) => setTaskData({...taskData, title: e.target.value})}
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                 placeholder="Follow Up"
               />
             </div>
@@ -2704,7 +2909,11 @@ export const CRMModule = () => {
               <Label>Description</Label>
               <Textarea
                 value={taskData.description}
+<<<<<<< HEAD
                 onChange={(e) => setTaskData({ ...taskData, description: e.target.value })}
+=======
+                onChange={(e) => setTaskData({...taskData, description: e.target.value})}
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                 placeholder="Took a call with John Doe and discussed the new project."
                 rows={4}
               />
@@ -2712,7 +2921,11 @@ export const CRMModule = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Status</Label>
+<<<<<<< HEAD
                 <Select value={taskData.status} onValueChange={(value) => setTaskData({ ...taskData, status: value })}>
+=======
+                <Select value={taskData.status} onValueChange={(value) => setTaskData({...taskData, status: value})}>
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -2730,7 +2943,11 @@ export const CRMModule = () => {
               </div>
               <div>
                 <Label>Assigned To</Label>
+<<<<<<< HEAD
                 <Select value={taskData.assignedTo} onValueChange={(value) => setTaskData({ ...taskData, assignedTo: value })}>
+=======
+                <Select value={taskData.assignedTo} onValueChange={(value) => setTaskData({...taskData, assignedTo: value})}>
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -2748,12 +2965,20 @@ export const CRMModule = () => {
                 <Input
                   type="datetime-local"
                   value={taskData.dueDate}
+<<<<<<< HEAD
                   onChange={(e) => setTaskData({ ...taskData, dueDate: e.target.value })}
+=======
+                  onChange={(e) => setTaskData({...taskData, dueDate: e.target.value})}
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                 />
               </div>
               <div>
                 <Label>Priority</Label>
+<<<<<<< HEAD
                 <Select value={taskData.priority} onValueChange={(value) => setTaskData({ ...taskData, priority: value })}>
+=======
+                <Select value={taskData.priority} onValueChange={(value) => setTaskData({...taskData, priority: value})}>
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -2785,7 +3010,11 @@ export const CRMModule = () => {
               <Label>Title</Label>
               <Input
                 value={noteData.title}
+<<<<<<< HEAD
                 onChange={(e) => setNoteData({ ...noteData, title: e.target.value })}
+=======
+                onChange={(e) => setNoteData({...noteData, title: e.target.value})}
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                 placeholder="Call with John Doe"
               />
             </div>
@@ -2793,7 +3022,11 @@ export const CRMModule = () => {
               <Label>Content</Label>
               <Textarea
                 value={noteData.content}
+<<<<<<< HEAD
                 onChange={(e) => setNoteData({ ...noteData, content: e.target.value })}
+=======
+                onChange={(e) => setNoteData({...noteData, content: e.target.value})}
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                 placeholder="Took a call with John Doe and discussed the new project."
                 rows={8}
               />

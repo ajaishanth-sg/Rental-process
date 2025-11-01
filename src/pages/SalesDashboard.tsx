@@ -17,7 +17,10 @@ import EnquiryManagementModule from '@/components/sales/EnquiryManagementModule'
 import QuotationManagementModule from '@/components/sales/QuotationManagementModule';
 import SalesOrderManagementModule from '@/components/sales/SalesOrderManagementModule';
 import CustomerCommunicationModule from '@/components/sales/CustomerCommunicationModule';
+<<<<<<< HEAD
 import SalesCrmModule from '@/components/sales/SalesCrmModule';
+=======
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
 import { useToast } from '@/hooks/use-toast';
 
 const SalesDashboard = () => {
@@ -63,14 +66,22 @@ const SalesDashboard = () => {
   useEffect(() => {
     // Check for hash in URL to set active tab
     const hash = window.location.hash.replace('#', '');
+<<<<<<< HEAD
     if (hash && ['overview', 'enquiries', 'quotations', 'sales-orders', 'contracts', 'customers', 'communication', 'reports', 'crm'].includes(hash)) {
+=======
+    if (hash && ['overview', 'enquiries', 'quotations', 'sales-orders', 'contracts', 'customers', 'communication', 'reports'].includes(hash)) {
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
       setActiveTab(hash);
     }
 
     // Listen for sales tab change events from sidebar
     const handleSalesTabChange = (event: any) => {
       console.log('Sales tab change event:', event.detail);
+<<<<<<< HEAD
       if (event.detail && ['overview', 'contracts', 'quotations', 'customers', 'reports', 'enquiries', 'sales-orders', 'communication', 'crm'].includes(event.detail)) {
+=======
+      if (event.detail && ['overview', 'contracts', 'quotations', 'customers', 'reports', 'enquiries', 'sales-orders', 'communication'].includes(event.detail)) {
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
         setActiveTab(event.detail);
       }
     };
@@ -115,7 +126,11 @@ const SalesDashboard = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+<<<<<<< HEAD
            <TabsList className="grid w-full grid-cols-9">
+=======
+           <TabsList className="grid w-full grid-cols-8">
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
              <TabsTrigger value="overview">Overview</TabsTrigger>
              <TabsTrigger value="enquiries">Enquiries</TabsTrigger>
              <TabsTrigger value="quotations">Quotations</TabsTrigger>
@@ -124,7 +139,10 @@ const SalesDashboard = () => {
              <TabsTrigger value="customers">Customers</TabsTrigger>
              <TabsTrigger value="communication">Communication</TabsTrigger>
              <TabsTrigger value="reports">Reports</TabsTrigger>
+<<<<<<< HEAD
              <TabsTrigger value="crm">CRM</TabsTrigger>
+=======
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
            </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
@@ -356,10 +374,13 @@ const SalesDashboard = () => {
             <CustomerCommunicationModule />
           </TabsContent>
 
+<<<<<<< HEAD
           <TabsContent value="crm">
             <SalesCrmModule />
           </TabsContent>
 
+=======
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
           <TabsContent value="reports">
             <div className="space-y-6">
               <Card>

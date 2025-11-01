@@ -103,6 +103,7 @@ async def get_sales_enquiries(current_user: dict = Depends(get_current_user)):
         print(f"\n=== SALES ENQUIRIES REQUEST ===")
         print(f"User: {current_user.get('email')} (Role: {current_user.get('role')})")
 
+<<<<<<< HEAD
         # Query enquiries collection and include those unassigned or assigned to the current salesperson
         enquiries_cursor = db.enquiries.find({})
         enquiries_raw = await enquiries_cursor.to_list(length=None)
@@ -113,6 +114,16 @@ async def get_sales_enquiries(current_user: dict = Depends(get_current_user)):
                 enquiry_copy = enquiry.copy()
                 enquiry_copy["id"] = str(enquiry_copy.pop("_id"))
                 enquiries.append(enquiry_copy)
+=======
+        # Query from enquiries collection for the current user
+        enquiries_cursor = db.enquiries.find({"assigned_salesperson_id": current_user["id"]})
+        enquiries_raw = await enquiries_cursor.to_list(length=None)
+        enquiries = []
+        for enquiry in enquiries_raw:
+            enquiry_copy = enquiry.copy()
+            enquiry_copy["id"] = str(enquiry_copy.pop("_id"))
+            enquiries.append(enquiry_copy)
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
         
         print(f"Found {len(enquiries)} regular enquiries")
 

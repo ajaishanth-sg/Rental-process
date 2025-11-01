@@ -1,7 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from datetime import datetime, timedelta
+<<<<<<< HEAD
 from pydantic import BaseModel, EmailStr
+=======
+from pydantic import BaseModel
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
 from ..utils.auth import get_current_user
 from ..utils.database import get_database
 
@@ -45,6 +49,7 @@ class FeedbackSubmit(BaseModel):
     comments: Optional[str] = None
 
 # Leads models
+<<<<<<< HEAD
 class PublicLeadSubmission(BaseModel):
     firstName: str
     lastName: Optional[str] = None
@@ -59,6 +64,8 @@ class PublicLeadSubmission(BaseModel):
     message: Optional[str] = None
 
 
+=======
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
 class Lead(BaseModel):
     salutation: str = "Mr"
     firstName: str
@@ -77,12 +84,15 @@ class Lead(BaseModel):
     territory: Optional[str] = None
     leadOwner: str = "Shariq Ansari"
 
+<<<<<<< HEAD
 
 class LeadStatusUpdate(BaseModel):
     status: str
     nextFollowUp: Optional[str] = None
     notes: Optional[str] = None
 
+=======
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
 class Email(BaseModel):
     leadId: str
     to: str
@@ -695,6 +705,7 @@ async def create_lead(lead_data: Lead, current_user: dict = Depends(get_current_
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating lead: {str(e)}")
 
+<<<<<<< HEAD
 
 @router.post("/leads/public")
 async def create_public_lead(lead_data: PublicLeadSubmission):
@@ -874,6 +885,8 @@ async def update_lead_status(lead_id: str, status_update: LeadStatusUpdate, curr
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating lead status: {str(e)}")
 
+=======
+>>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
 @router.put("/leads/{lead_id}")
 async def update_lead(lead_id: str, lead_data: Lead, current_user: dict = Depends(get_current_user)):
     """Update a lead"""
