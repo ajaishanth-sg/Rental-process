@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Calendar, FileText, Package, Plus, MapPin, Phone, User, Building } from 'lucide-react';
+import { Calendar, FileText, Package, Plus, MapPin, Phone, User, Building, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Rental {
@@ -35,11 +35,23 @@ interface Rental {
   special_requirements?: string;
 }
 
+interface Equipment {
+  id: string;
+  item_code: string;
+  description: string;
+  category: string;
+  unit: string;
+  daily_rate: number;
+  quantity_available: number;
+}
+
 
 export const RentalsModule = () => {
   const { user } = useAuth();
   const [rentals, setRentals] = useState<Rental[]>([]);
   const [loading, setLoading] = useState(true);
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [loadingEquipment, setLoadingEquipment] = useState(true);
   const [selectedRental, setSelectedRental] = useState<Rental | null>(null);
   const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
@@ -64,7 +76,33 @@ export const RentalsModule = () => {
 
   useEffect(() => {
     fetchRentals();
+    fetchEquipment();
   }, [user]);
+
+  const fetchEquipment = async () => {
+    try {
+      setLoadingEquipment(true);
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('http://localhost:8000/api/equipment/?approval_status=approved', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setEquipment(data);
+      } else {
+        console.error('Failed to fetch equipment');
+        setEquipment([]);
+      }
+    } catch (error) {
+      console.error('Error fetching equipment:', error);
+      setEquipment([]);
+    } finally {
+      setLoadingEquipment(false);
+    }
+  };
 
   const fetchRentals = async () => {
     if (!user) {
@@ -428,23 +466,35 @@ export const RentalsModule = () => {
                         </Select>
                       </div>
                       <div>
-                        <Label htmlFor="equipmentType">Specific Equipment Type *</Label>
-                        <Select value={orderForm.equipmentType} onValueChange={(value) => setOrderForm({ ...orderForm, equipmentType: value })}>
+                        <Label htmlFor="equipmentType">Specific Equipment *</Label>
+                        <Select 
+                          value={orderForm.equipmentType} 
+                          onValueChange={(value) => {
+                            const selectedEq = equipment.find(eq => eq.id === value);
+                            setOrderForm({ 
+                              ...orderForm, 
+                              equipmentType: value,
+                              unit: selectedEq?.unit || orderForm.unit
+                            });
+                          }}
+                          disabled={loadingEquipment || !orderForm.equipmentCategory}
+                        >
                           <SelectTrigger>
-                            <SelectValue placeholder="Select equipment type" />
+                            <SelectValue placeholder={loadingEquipment ? "Loading..." : "Select equipment"} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="frame-scaffolding">Frame Scaffolding</SelectItem>
-                            <SelectItem value="tube-coupler">Tube & Coupler</SelectItem>
-                            <SelectItem value="system-scaffolding">System Scaffolding</SelectItem>
-                            <SelectItem value="wall-formwork">Wall Formwork</SelectItem>
-                            <SelectItem value="slab-formwork">Slab Formwork</SelectItem>
-                            <SelectItem value="column-formwork">Column Formwork</SelectItem>
-                            <SelectItem value="props">Adjustable Props</SelectItem>
-                            <SelectItem value="safety-nets">Safety Nets</SelectItem>
-                            <SelectItem value="harnesses">Safety Harnesses</SelectItem>
-                            <SelectItem value="helmets">Safety Helmets</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
+                            {equipment
+                              .filter(eq => eq.category === orderForm.equipmentCategory)
+                              .map((eq) => (
+                                <SelectItem key={eq.id} value={eq.id}>
+                                  {eq.description} ({eq.item_code}) - AED {eq.daily_rate}/day - Available: {eq.quantity_available}
+                                </SelectItem>
+                              ))}
+                            {equipment.filter(eq => eq.category === orderForm.equipmentCategory).length === 0 && !loadingEquipment && (
+                              <SelectItem value="no-equipment" disabled>
+                                No equipment available in this category
+                              </SelectItem>
+                            )}
                           </SelectContent>
                         </Select>
                       </div>
