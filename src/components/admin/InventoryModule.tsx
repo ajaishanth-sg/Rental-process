@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,14 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, CheckCircle, XCircle, Package, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
-
-const inventoryData = [
-  { id: '1', itemCode: 'SCAFF-001', description: 'Aluminum Scaffolding Frame', category: 'Scaffolding', totalQty: 100, availableQty: 45, rentedQty: 50, damagedQty: 5, status: 'available', lastUpdated: '2025-01-20' },
-  { id: '2', itemCode: 'FORM-001', description: 'Plywood Formwork Panel', category: 'Formwork', totalQty: 80, availableQty: 35, rentedQty: 40, damagedQty: 5, status: 'available', lastUpdated: '2025-01-19' },
-  { id: '3', itemCode: 'SHORE-001', description: 'Adjustable Shoring Props', category: 'Shoring', totalQty: 150, availableQty: 0, rentedQty: 145, damagedQty: 5, status: 'rented', lastUpdated: '2025-01-18' },
-  { id: '4', itemCode: 'SAFETY-001', description: 'Safety Harness Set', category: 'Safety', totalQty: 200, availableQty: 180, rentedQty: 15, damagedQty: 5, status: 'available', lastUpdated: '2025-01-20' },
-];
+import { Plus, Edit, CheckCircle, XCircle, Package, AlertTriangle, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 
 const transactionData = [
   { id: '1', itemCode: 'SCAFF-001', type: 'dispatch', quantity: 10, reason: 'New rental contract RC-2025-001', date: '2025-01-20', approved: true, approvedBy: 'Warehouse Manager' },
@@ -24,12 +17,54 @@ const transactionData = [
 ];
 
 export const InventoryModule = () => {
-  const [inventory, setInventory] = useState(inventoryData);
+  const [inventory, setInventory] = useState<any[]>([]);
   const [transactions, setTransactions] = useState(transactionData);
   const [activeTab, setActiveTab] = useState('inventory');
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+
+  const fetchInventory = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('http://localhost:8000/api/warehouse/stock', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Map the API data to the format expected by the component
+        const mappedData = data.map((item: any) => ({
+          id: item.id,
+          itemCode: item.item_code,
+          description: item.description,
+          category: item.category || 'Other',
+          totalQty: item.quantity_total,
+          availableQty: item.quantity_available,
+          rentedQty: item.quantity_rented,
+          damagedQty: item.quantity_maintenance,
+          status: 'available',
+          lastUpdated: new Date().toISOString().split('T')[0]
+        }));
+        setInventory(mappedData);
+      } else {
+        console.error('Failed to fetch inventory');
+        setInventory([]);
+      }
+    } catch (error) {
+      console.error('Error fetching inventory:', error);
+      setInventory([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchInventory();
+  }, []);
 
   const getStatusBadgeVariant = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
@@ -192,25 +227,45 @@ export const InventoryModule = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {inventory.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.itemCode}</TableCell>
-                    <TableCell>{item.description}</TableCell>
-                    <TableCell>{item.category}</TableCell>
-                    <TableCell>{item.totalQty}</TableCell>
-                    <TableCell className={item.availableQty < 10 ? 'text-orange-600 font-medium' : ''}>
-                      {item.availableQty}
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-8">
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Loading inventory...</span>
+                      </div>
                     </TableCell>
-                    <TableCell>{item.rentedQty}</TableCell>
-                    <TableCell className="text-red-600">{item.damagedQty}</TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusBadgeVariant(item.status)}>
-                        {item.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{item.lastUpdated}</TableCell>
                   </TableRow>
-                ))}
+                ) : inventory.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-8">
+                      <div className="flex flex-col items-center gap-2">
+                        <Package className="h-12 w-12 text-muted-foreground" />
+                        <span className="text-muted-foreground">No inventory items available</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  inventory.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">{item.itemCode}</TableCell>
+                      <TableCell>{item.description}</TableCell>
+                      <TableCell>{item.category}</TableCell>
+                      <TableCell>{item.totalQty}</TableCell>
+                      <TableCell className={item.availableQty < 10 ? 'text-orange-600 font-medium' : ''}>
+                        {item.availableQty}
+                      </TableCell>
+                      <TableCell>{item.rentedQty}</TableCell>
+                      <TableCell className="text-red-600">{item.damagedQty}</TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusBadgeVariant(item.status)}>
+                          {item.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{item.lastUpdated}</TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
