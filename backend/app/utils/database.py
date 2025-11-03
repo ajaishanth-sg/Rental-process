@@ -141,14 +141,11 @@ class MockCollection:
             if self._matches_query(item, query):
                 if "$set" in update:
                     item.update(update["$set"])
-<<<<<<< HEAD
                 if "$push" in update:
                     for key, value in update["$push"].items():
                         if key not in item or not isinstance(item[key], list):
                             item[key] = []
                         item[key].append(value)
-=======
->>>>>>> b26e718f91fe4e665e61b8cee3fa4f4b50862102
                 return MockUpdateResult(1)
         return MockUpdateResult(0)
 
