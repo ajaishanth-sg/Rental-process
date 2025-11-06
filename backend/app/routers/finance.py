@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List, Dict, Any
 from datetime import datetime, timedelta
-from ..utils.auth import get_current_user
+from ..utils.auth import get_current_user, is_admin_or_super_admin
 from ..utils.database import get_database
 
 router = APIRouter()
@@ -10,44 +10,65 @@ router = APIRouter()
 async def get_finance_dashboard(current_user: dict = Depends(get_current_user)):
     """Get finance dashboard data"""
     try:
-        # Check if user is admin
-        if current_user.get("role") != "admin":
-            raise HTTPException(status_code=403, detail="Access denied. Admin role required.")
+        # Check if user is admin or super_admin
+        if not is_admin_or_super_admin(current_user):
+            raise HTTPException(status_code=403, detail="Access denied. Admin or Super Admin role required.")
 
         db = get_database()
 
         # Get total revenue from invoices
         total_revenue = 0
-        invoices_cursor = db.invoices.find({})
-        invoices = await invoices_cursor.to_list(length=None)
-        for invoice in invoices:
-            total_revenue += invoice.get("total", 0)
+        try:
+            invoices_cursor = db.invoices.find({})
+            invoices = await invoices_cursor.to_list(length=None)
+            for invoice in invoices:
+                total_revenue += invoice.get("total", 0) or invoice.get("amount", 0) or 0
+        except Exception:
+            total_revenue = 0
 
         # Get outstanding amount from pending invoices
         outstanding_amount = 0
         outstanding_count = 0
-        pending_invoices_cursor = db.invoices.find({"status": "pending"})
-        pending_invoices = await pending_invoices_cursor.to_list(length=None)
-        for invoice in pending_invoices:
-            outstanding_amount += invoice.get("total", 0)
-            outstanding_count += 1
+        try:
+            pending_invoices_cursor = db.invoices.find({"status": "pending"})
+            pending_invoices = await pending_invoices_cursor.to_list(length=None)
+            for invoice in pending_invoices:
+                outstanding_amount += invoice.get("total", 0) or invoice.get("amount", 0) or 0
+                outstanding_count += 1
+        except Exception:
+            outstanding_amount = 0
+            outstanding_count = 0
 
         # Get pending approvals
-        pending_approvals = await db.rentals.count_documents({"status": "pending_approval"})
+        try:
+            pending_approvals = await db.rentals.count_documents({"status": "pending_approval"})
+        except Exception:
+            pending_approvals = 0
 
         # Get recent invoices
-        recent_invoices_cursor = db.invoices.find({}).sort("created_at", -1).limit(5)
-        recent_invoices_raw = await recent_invoices_cursor.to_list(length=5)
         recent_invoices = []
-        for invoice in recent_invoices_raw:
-            recent_invoices.append({
-                "id": invoice.get("invoice_id", str(invoice["_id"])),
-                "customer": invoice.get("customer_name", ""),
-                "date": invoice.get("created_at", "")[:10] if invoice.get("created_at") else "",
-                "amount": invoice.get("amount", 0),
-                "vat": invoice.get("vat", 0),
-                "status": invoice.get("status", "pending")
-            })
+        try:
+            recent_invoices_cursor = db.invoices.find({}).sort("created_at", -1).limit(5)
+            recent_invoices_raw = await recent_invoices_cursor.to_list(length=5)
+            for invoice in recent_invoices_raw:
+                created_at = invoice.get("created_at")
+                if isinstance(created_at, datetime):
+                    date_str = created_at.strftime("%Y-%m-%d")
+                elif isinstance(created_at, str):
+                    date_str = created_at[:10] if len(created_at) >= 10 else ""
+                else:
+                    date_str = ""
+                
+                recent_invoices.append({
+                    "id": invoice.get("invoice_id", str(invoice["_id"])),
+                    "customer": invoice.get("customer_name", ""),
+                    "date": date_str,
+                    "amount": invoice.get("amount", invoice.get("total", 0)),
+                    "vat": invoice.get("vat", 0),
+                    "status": invoice.get("status", "pending")
+                })
+        except Exception:
+            recent_invoices = []
 
         # Get contract profitability (simplified)
         contract_profitability = []  # TODO: Calculate from contracts and costs
@@ -74,9 +95,9 @@ async def get_finance_dashboard(current_user: dict = Depends(get_current_user)):
 async def get_finance_invoices(current_user: dict = Depends(get_current_user)):
     """Get invoices for finance"""
     try:
-        # Check if user is admin
-        if current_user.get("role") != "admin":
-            raise HTTPException(status_code=403, detail="Access denied. Admin role required.")
+        # Check if user is admin or super_admin
+        if not is_admin_or_super_admin(current_user):
+            raise HTTPException(status_code=403, detail="Access denied. Admin or Super Admin role required.")
         db = get_database()
 
         # Query from invoices collection
@@ -97,9 +118,9 @@ async def get_finance_invoices(current_user: dict = Depends(get_current_user)):
 async def get_finance_payments(current_user: dict = Depends(get_current_user)):
     """Get payments for finance"""
     try:
-        # Check if user is admin
-        if current_user.get("role") != "admin":
-            raise HTTPException(status_code=403, detail="Access denied. Admin role required.")
+        # Check if user is admin or super_admin
+        if not is_admin_or_super_admin(current_user):
+            raise HTTPException(status_code=403, detail="Access denied. Admin or Super Admin role required.")
         db = get_database()
 
         # Query from payments collection
@@ -120,9 +141,9 @@ async def get_finance_payments(current_user: dict = Depends(get_current_user)):
 async def get_finance_deposits(current_user: dict = Depends(get_current_user)):
     """Get deposits for finance"""
     try:
-        # Check if user is admin
-        if current_user.get("role") != "admin":
-            raise HTTPException(status_code=403, detail="Access denied. Admin role required.")
+        # Check if user is admin or super_admin
+        if not is_admin_or_super_admin(current_user):
+            raise HTTPException(status_code=403, detail="Access denied. Admin or Super Admin role required.")
         db = get_database()
 
         # Query from deposits collection
@@ -144,9 +165,9 @@ async def get_finance_deposits(current_user: dict = Depends(get_current_user)):
 async def get_finance_approvals(current_user: dict = Depends(get_current_user)):
     """Get pending approvals for finance"""
     try:
-        # Check if user is admin
-        if current_user.get("role") != "admin":
-            raise HTTPException(status_code=403, detail="Access denied. Admin role required.")
+        # Check if user is admin or super_admin
+        if not is_admin_or_super_admin(current_user):
+            raise HTTPException(status_code=403, detail="Access denied. Admin or Super Admin role required.")
         db = get_database()
 
         # Get pending rental approvals
@@ -174,9 +195,9 @@ async def get_finance_approvals(current_user: dict = Depends(get_current_user)):
 async def get_finance_reports(current_user: dict = Depends(get_current_user)):
     """Get finance reports"""
     try:
-        # Check if user is admin
-        if current_user.get("role") != "admin":
-            raise HTTPException(status_code=403, detail="Access denied. Admin role required.")
+        # Check if user is admin or super_admin
+        if not is_admin_or_super_admin(current_user):
+            raise HTTPException(status_code=403, detail="Access denied. Admin or Super Admin role required.")
         db = get_database()
 
         # TODO: Implement proper reporting queries

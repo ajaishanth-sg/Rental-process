@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/DashboardLayout';
+import API_CONFIG from '@/config/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   DollarSign,
@@ -96,14 +97,15 @@ const AdminDashboard = () => {
     if (!loading && !user) {
       navigate('/auth');
     } else if (!loading && role && role !== 'admin') {
-      navigate(`/${role}`);
+      const rolePath = role === 'super_admin' ? '/super-admin' : `/${role}`;
+      navigate(rolePath);
     }
   }, [user, role, loading, navigate]);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/admin/stats', {
+        const response = await fetch(API_CONFIG.ADMIN.DASHBOARD, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
           }

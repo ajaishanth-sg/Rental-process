@@ -425,6 +425,16 @@ export const HRModule = () => {
     join_date: '',
   });
 
+  const [addLeaveDialogOpen, setAddLeaveDialogOpen] = useState(false);
+  const [addingLeave, setAddingLeave] = useState(false);
+  const [leaveForm, setLeaveForm] = useState({
+    employee_id: '',
+    leave_type: '',
+    from_date: '',
+    to_date: '',
+    reason: '',
+  });
+
   useEffect(() => {
     fetchEmployees();
   }, []);
@@ -673,8 +683,144 @@ export const HRModule = () => {
         <TabsContent value="leave">
           <Card>
             <CardHeader>
-              <CardTitle>Leave Management</CardTitle>
-              <CardDescription>Track leave requests and approvals</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Leave Management</CardTitle>
+                  <CardDescription>Track leave requests and approvals</CardDescription>
+                </div>
+                <Dialog open={addLeaveDialogOpen} onOpenChange={setAddLeaveDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button><Plus className="h-4 w-4 mr-2" />Add Leave</Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-xl">
+                    <DialogHeader>
+                      <DialogTitle>Add Leave Request</DialogTitle>
+                      <DialogDescription>Create a new leave request for an employee</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Employee *</Label>
+                        <select
+                          value={leaveForm.employee_id}
+                          onChange={(e) => setLeaveForm({ ...leaveForm, employee_id: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        >
+                          <option value="">Select Employee</option>
+                          {employees.map((emp) => (
+                            <option key={emp.id} value={emp.employee_id || emp.id}>
+                              {emp.name} ({emp.employee_id || emp.id})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Leave Type *</Label>
+                        <select
+                          value={leaveForm.leave_type}
+                          onChange={(e) => setLeaveForm({ ...leaveForm, leave_type: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        >
+                          <option value="">Select Leave Type</option>
+                          <option value="Annual Leave">Annual Leave</option>
+                          <option value="Sick Leave">Sick Leave</option>
+                          <option value="Maternity Leave">Maternity Leave</option>
+                          <option value="Paternity Leave">Paternity Leave</option>
+                          <option value="Emergency Leave">Emergency Leave</option>
+                          <option value="Unpaid Leave">Unpaid Leave</option>
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>From Date *</Label>
+                          <Input
+                            type="date"
+                            value={leaveForm.from_date}
+                            onChange={(e) => setLeaveForm({ ...leaveForm, from_date: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>To Date *</Label>
+                          <Input
+                            type="date"
+                            value={leaveForm.to_date}
+                            onChange={(e) => setLeaveForm({ ...leaveForm, to_date: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Reason</Label>
+                        <textarea
+                          value={leaveForm.reason}
+                          onChange={(e) => setLeaveForm({ ...leaveForm, reason: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md min-h-[100px]"
+                          placeholder="Enter reason for leave..."
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-4">
+                      <Button variant="outline" onClick={() => setAddLeaveDialogOpen(false)}>Cancel</Button>
+                      <Button
+                        onClick={async () => {
+                          if (!leaveForm.employee_id || !leaveForm.leave_type || !leaveForm.from_date || !leaveForm.to_date) {
+                            toast({
+                              title: 'Validation',
+                              description: 'Please fill all required fields',
+                              variant: 'destructive',
+                            });
+                            return;
+                          }
+                          try {
+                            setAddingLeave(true);
+                            const token = localStorage.getItem('auth_token');
+                            const res = await fetch('http://localhost:8000/api/hr/leave', {
+                              method: 'POST',
+                              headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json',
+                              },
+                              body: JSON.stringify(leaveForm),
+                            });
+                            if (!res.ok) {
+                              const err = await res.json().catch(() => ({ detail: 'Failed to create leave request' }));
+                              throw new Error(err.detail || 'Failed to create leave request');
+                            }
+                            toast({
+                              title: 'Leave Added',
+                              description: 'Leave request created successfully',
+                            });
+                            setAddLeaveDialogOpen(false);
+                            setLeaveForm({
+                              employee_id: '',
+                              leave_type: '',
+                              from_date: '',
+                              to_date: '',
+                              reason: '',
+                            });
+                          } catch (e: any) {
+                            toast({
+                              title: 'Error',
+                              description: e.message || 'Failed to create leave request',
+                              variant: 'destructive',
+                            });
+                          } finally {
+                            setAddingLeave(false);
+                          }
+                        }}
+                        disabled={addingLeave}
+                      >
+                        {addingLeave ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          'Save'
+                        )}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">

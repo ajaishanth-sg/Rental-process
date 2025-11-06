@@ -24,6 +24,7 @@ export const API_CONFIG = {
   },
   ADMIN: {
     BASE: `${API_BASE_URL}/api/admin`,
+    DASHBOARD: `${API_BASE_URL}/api/admin/dashboard`,
     ENQUIRIES: `${API_BASE_URL}/api/admin/enquiries`,
     USERS: `${API_BASE_URL}/api/admin/users`,
   },
@@ -46,6 +47,7 @@ export const API_CONFIG = {
   },
   FINANCE: {
     BASE: `${API_BASE_URL}/api/finance`,
+    DASHBOARD: `${API_BASE_URL}/api/finance/dashboard`,
   },
 };
 

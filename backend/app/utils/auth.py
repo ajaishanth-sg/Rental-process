@@ -80,3 +80,15 @@ async def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] =
         "name": user["full_name"],
         "id": str(user["_id"])
     }
+
+def is_admin_or_super_admin(user: dict) -> bool:
+    """Check if user has admin or super_admin role"""
+    return user.get("role") in ["admin", "super_admin"]
+
+def require_admin_or_super_admin(user: dict):
+    """Raise HTTPException if user is not admin or super_admin"""
+    if not is_admin_or_super_admin(user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Admin or Super Admin role required."
+        )

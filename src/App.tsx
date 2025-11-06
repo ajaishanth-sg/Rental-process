@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import AdminDashboard from "./pages/AdminDashboard";
+import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import SalesDashboard from "./pages/SalesDashboard";
 import WarehouseDashboard from "./pages/WarehouseDashboard";
 import FinanceDashboard from "./pages/FinanceDashboard";
@@ -25,6 +26,8 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/super-admin/*" element={<SuperAdminDashboard />} />
+            <Route path="/super_admin" element={<SuperAdminDashboard />} /> {/* Redirect for underscore variant */}
             <Route path="/admin/*" element={<AdminDashboard />} />
             <Route path="/sales/*" element={<SalesDashboard />} />
             <Route path="/warehouse/*" element={<WarehouseDashboard />} />

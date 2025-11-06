@@ -29,7 +29,8 @@ const WarehouseDashboard = () => {
     if (!loading && !user) {
       navigate('/auth');
     } else if (!loading && role && role !== 'warehouse' && role !== 'admin') {
-      navigate(`/${role}`);
+      const rolePath = role === 'super_admin' ? '/super-admin' : `/${role}`;
+      navigate(rolePath);
     }
   }, [user, role, loading, navigate]);
 

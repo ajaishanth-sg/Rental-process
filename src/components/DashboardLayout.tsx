@@ -28,6 +28,18 @@ import {
   RefreshCw,
   Grid3x3,
   ChevronRight,
+  Shield,
+  Warehouse,
+  UserCircle,
+  Calendar,
+  ClipboardList,
+  Wallet,
+  Briefcase,
+  TrendingUp,
+  MessageSquare,
+  Receipt,
+  CreditCard,
+  AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -42,17 +54,98 @@ import {
   SidebarProvider,
   SidebarTrigger,
   useSidebar,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
 } from '@/components/ui/sidebar';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface DashboardLayoutProps {
   children: ReactNode;
   role: string;
 }
 
+// Super Admin navigation structure with all modules
+const superAdminMenuStructure = [
+  {
+    role: 'Admin',
+    icon: Shield,
+    modules: [
+      { id: 'admin-crm', name: 'CRM Management', icon: UserCheck, hasTabs: true },
+      { id: 'admin-hr', name: 'HR Management', icon: Users, hasTabs: true },
+      { id: 'admin-sales', name: 'Sales Management', icon: ShoppingCart, hasTabs: true },
+      { id: 'admin-users', name: 'Users & Roles', icon: Users },
+      { id: 'admin-contracts', name: 'Contracts', icon: FileText },
+      { id: 'admin-contract-oversight', name: 'Contract Oversight', icon: FileText },
+      { id: 'admin-finance', name: 'Finance', icon: DollarSign, hasTabs: true },
+      { id: 'admin-inventory', name: 'Inventory', icon: Package, hasTabs: true },
+      { id: 'admin-dispatch', name: 'Dispatch', icon: Truck },
+      { id: 'admin-reports', name: 'Reports', icon: BarChart3 },
+      { id: 'admin-customers', name: 'Customers', icon: Building2 },
+      { id: 'admin-workorders', name: 'Work Orders', icon: FileText },
+      { id: 'admin-events', name: 'Events', icon: Calendar },
+      { id: 'admin-settings', name: 'Settings', icon: Settings },
+      { id: 'admin-equipment', name: 'Equipment Catalog', icon: Package },
+      { id: 'admin-warehouse-orders', name: 'Warehouse Orders', icon: Truck },
+      { id: 'admin-vendor', name: 'Vendor Management', icon: Building2 },
+      { id: 'admin-master-data', name: 'Master Data', icon: Settings, hasTabs: true },
+      { id: 'admin-invoices', name: 'Invoices', icon: Receipt },
+    ],
+  },
+  {
+    role: 'Sales',
+    icon: ShoppingCart,
+    modules: [
+      { id: 'sales-enquiries', name: 'Enquiries', icon: MessageSquare },
+      { id: 'sales-quotations', name: 'Quotations', icon: FileText },
+      { id: 'sales-orders', name: 'Sales Orders', icon: ShoppingCart },
+      { id: 'sales-crm', name: 'CRM', icon: UserCheck },
+      { id: 'sales-communication', name: 'Customer Communication', icon: MessageSquare },
+    ],
+  },
+  {
+    role: 'Warehouse',
+    icon: Warehouse,
+    modules: [
+      { id: 'warehouse-orders', name: 'Sales Orders', icon: Truck },
+      { id: 'warehouse-dispatch', name: 'Dispatch', icon: Truck },
+      { id: 'warehouse-returns', name: 'Returns', icon: Package },
+      { id: 'warehouse-stock', name: 'Stock Management', icon: Package },
+      { id: 'warehouse-reports', name: 'Reports', icon: BarChart3 },
+    ],
+  },
+  {
+    role: 'Finance',
+    icon: DollarSign,
+    modules: [
+      { id: 'finance-invoices', name: 'Invoices', icon: Receipt },
+      { id: 'finance-payments', name: 'Payments', icon: CreditCard },
+      { id: 'finance-deposits', name: 'Deposits & Penalties', icon: DollarSign },
+      { id: 'finance-approvals', name: 'Approval Workflow', icon: AlertTriangle },
+      { id: 'finance-reports', name: 'Reports', icon: BarChart3 },
+      { id: 'finance-vendor-costs', name: 'Vendor Costs', icon: DollarSign },
+    ],
+  },
+  {
+    role: 'Customer',
+    icon: UserCircle,
+    modules: [
+      { id: 'customer-rentals', name: 'My Rentals', icon: Package },
+      { id: 'customer-invoices', name: 'Invoices & Payments', icon: Receipt },
+      { id: 'customer-returns', name: 'Return Requests', icon: Package },
+      { id: 'customer-reports', name: 'Reports', icon: BarChart3 },
+      { id: 'customer-profile', name: 'Profile', icon: UserCircle },
+    ],
+  },
+];
+
 const roleMenuItems = {
+  super_admin: [
+    { title: 'Overview', icon: LayoutDashboard, path: '/super-admin', tab: 'overview' },
+  ],
   admin: [
     { title: 'Overview', icon: LayoutDashboard, path: '/admin', tab: 'overview' },
     { title: 'CRM', icon: UserCheck, path: '/admin', tab: 'crm' },
@@ -112,10 +205,37 @@ const AppSidebar = ({ role }: { role: string }) => {
   const collapsed = state === 'collapsed';
   const menuItems = roleMenuItems[role as keyof typeof roleMenuItems] || [];
   const [activeItem, setActiveItem] = useState('overview');
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    'Admin': true,
+    'Sales': true,
+    'Warehouse': true,
+    'Finance': true,
+    'Customer': true,
+  });
+
+  const toggleSection = (section: string) => {
+    setOpenSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
 
   const handleMenuClick = (item: any) => {
-    setActiveItem(item.tab || 'overview');
-    if (role === 'admin' && item.tab) {
+    const tabId = item.tab || item.id || 'overview';
+    setActiveItem(tabId);
+    if (role === 'super_admin') {
+      navigate('/super-admin');
+      setTimeout(() => {
+        if (item.tab && item.tab.includes('/')) {
+          const [moduleId, subModuleId] = item.tab.split('/');
+          window.location.hash = `${moduleId}/${subModuleId}`;
+          window.dispatchEvent(new CustomEvent('superAdminModuleChange', { detail: `${moduleId}/${subModuleId}` }));
+        } else {
+          window.location.hash = tabId;
+          window.dispatchEvent(new CustomEvent('superAdminModuleChange', { detail: tabId }));
+        }
+      }, 100);
+    } else if (role === 'admin' && item.tab) {
       navigate('/admin');
       setTimeout(() => {
         window.location.hash = item.tab;
@@ -168,35 +288,116 @@ const AppSidebar = ({ role }: { role: string }) => {
           )}
         </div>
 
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => {
-                const isActive = activeItem === item.tab;
-                return (
-                <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      className={cn(
-                        'w-full justify-start',
-                        isActive && 'bg-[#2a4a6f] text-white',
-                        !isActive && 'text-gray-300 hover:bg-[#2a4a6f]/50 hover:text-white'
-                      )}
-                    >
-                      <button
-                        onClick={() => handleMenuClick(item)}
-                        className="flex items-center gap-3 w-full px-3 py-2 rounded-lg"
-                    >
-                      <item.icon className="h-4 w-4" />
-                        {!collapsed && <span className="flex-1 text-left">{item.title}</span>}
-                    </button>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <ScrollArea className="flex-1">
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {/* Overview */}
+                {menuItems.map((item) => {
+                  const isActive = activeItem === item.tab;
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        asChild
+                        className={cn(
+                          'w-full justify-start',
+                          isActive && 'bg-[#2a4a6f] text-white',
+                          !isActive && 'text-gray-300 hover:bg-[#2a4a6f]/50 hover:text-white'
+                        )}
+                      >
+                        <button
+                          onClick={() => handleMenuClick(item)}
+                          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg"
+                        >
+                          <item.icon className="h-4 w-4" />
+                          {!collapsed && <span className="flex-1 text-left">{item.title}</span>}
+                        </button>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+
+                {/* Super Admin: All Modules by Role */}
+                {role === 'super_admin' && !collapsed && (
+                  <>
+                    {superAdminMenuStructure.map((roleGroup) => {
+                      const RoleIcon = roleGroup.icon;
+                      const isOpen = openSections[roleGroup.role] ?? true;
+                      
+                      return (
+                        <Collapsible key={roleGroup.role} open={isOpen} onOpenChange={(open) => toggleSection(roleGroup.role)}>
+                          <SidebarMenuItem>
+                            <CollapsibleTrigger asChild>
+                              <SidebarMenuButton className="w-full justify-between text-gray-300 hover:bg-[#2a4a6f]/50 hover:text-white">
+                                <div className="flex items-center gap-3">
+                                  <RoleIcon className="h-4 w-4" />
+                                  <span className="flex-1 text-left font-semibold">{roleGroup.role}</span>
+                                </div>
+                                <ChevronDown className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-180')} />
+                              </SidebarMenuButton>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <SidebarMenuSub>
+                                {roleGroup.modules.map((module) => {
+                                  const ModuleIcon = module.icon;
+                                  const moduleId = module.id;
+                                  const isModuleActive = activeItem === moduleId || activeItem.startsWith(moduleId);
+                                  
+                                  return (
+                                    <SidebarMenuSubItem key={module.id}>
+                                      <SidebarMenuSubButton
+                                        asChild
+                                        isActive={isModuleActive}
+                                        className={cn(
+                                          isModuleActive && 'bg-[#2a4a6f] text-white',
+                                          !isModuleActive && 'text-gray-400 hover:bg-[#2a4a6f]/30 hover:text-white'
+                                        )}
+                                      >
+                                        <button
+                                          onClick={() => {
+                                            setActiveItem(moduleId);
+                                            handleMenuClick({ tab: moduleId, path: '/super-admin' });
+                                          }}
+                                          className="flex items-center gap-2 w-full"
+                                        >
+                                          <ModuleIcon className="h-3.5 w-3.5" />
+                                          <span className="text-xs">{module.name}</span>
+                                        </button>
+                                      </SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                  );
+                                })}
+                              </SidebarMenuSub>
+                            </CollapsibleContent>
+                          </SidebarMenuItem>
+                        </Collapsible>
+                      );
+                    })}
+                  </>
+                )}
+
+                {/* Collapsed view for super admin */}
+                {role === 'super_admin' && collapsed && (
+                  <>
+                    {superAdminMenuStructure.map((roleGroup) => {
+                      const RoleIcon = roleGroup.icon;
+                      return (
+                        <SidebarMenuItem key={roleGroup.role}>
+                          <SidebarMenuButton
+                            className="w-full justify-center text-gray-300 hover:bg-[#2a4a6f]/50 hover:text-white"
+                            title={roleGroup.role}
+                          >
+                            <RoleIcon className="h-4 w-4" />
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      );
+                    })}
+                  </>
+                )}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </ScrollArea>
 
         <div className="mt-auto p-4 border-t border-[#2a4a6f]">
           <Button

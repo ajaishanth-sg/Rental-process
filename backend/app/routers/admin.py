@@ -9,6 +9,63 @@ from bson import ObjectId
 
 router = APIRouter()
 
+@router.get("/dashboard")
+async def get_admin_dashboard(current_user: dict = Depends(get_current_user)):
+    """Get admin dashboard data"""
+    try:
+        from ..utils.auth import is_admin_or_super_admin
+        if not is_admin_or_super_admin(current_user):
+            raise HTTPException(status_code=403, detail="Only admin or super admin can access this endpoint")
+        
+        db = get_database()
+        
+        # Get total customers
+        total_customers = await db.customers.count_documents({})
+        
+        # Get total enquiries
+        total_enquiries = await db.rentals.count_documents({})
+        total_enquiries += await db.enquiries.count_documents({})
+        
+        # Get pending quotations
+        pending_quotations = await db.quotations.count_documents({"status": "sent"})
+        
+        # Get active contracts
+        active_contracts = await db.rentals.count_documents({"status": "active"})
+        
+        # Get total revenue
+        total_revenue = 0
+        try:
+            invoices_cursor = db.invoices.find({})
+            invoices = await invoices_cursor.to_list(length=None)
+            total_revenue = sum(invoice.get("total", 0) or invoice.get("amount", 0) or 0 for invoice in invoices)
+        except Exception:
+            total_revenue = 0
+        
+        # Get equipment stats
+        equipment_rented = await db.equipment.count_documents({"quantity_rented": {"$gt": 0}})
+        equipment_available = await db.equipment.count_documents({"quantity_available": {"$gt": 0}})
+        
+        return {
+            "totalCustomers": total_customers,
+            "totalEnquiries": total_enquiries,
+            "pendingQuotations": pending_quotations,
+            "activeContracts": active_contracts,
+            "totalRevenue": total_revenue,
+            "equipmentRented": equipment_rented,
+            "equipmentAvailable": equipment_available,
+            "monthlyRevenue": total_revenue,  # Simplified
+            "pendingApprovals": pending_quotations
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching admin dashboard: {str(e)}")
+
+@router.get("/stats")
+async def get_admin_stats(current_user: dict = Depends(get_current_user)):
+    """Get admin statistics (alias for dashboard)"""
+    return await get_admin_dashboard(current_user)
+
 class CustomerCreate(BaseModel):
     name: str
     email: str

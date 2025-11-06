@@ -28,7 +28,8 @@ const Auth = () => {
     const storedRole = localStorage.getItem('role');
 
     if (token && storedUser && storedRole) {
-      navigate(`/${storedRole}`);
+      const rolePath = storedRole === 'super_admin' ? '/super-admin' : `/${storedRole}`;
+      navigate(rolePath);
     }
   }, []);
 

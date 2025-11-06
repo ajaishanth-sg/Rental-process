@@ -11,7 +11,8 @@ from ..utils.auth import (
     get_password_hash,
     verify_password,
     create_access_token,
-    get_current_user
+    get_current_user,
+    is_admin_or_super_admin
 )
 
 router = APIRouter()
@@ -63,8 +64,8 @@ async def login(credentials: UserLogin):
 
 @router.post("/register", response_model=UserResponse)
 async def register(user_data: UserCreate, current_user: dict = Depends(get_current_user)):
-    # Only admins can create users
-    if current_user["role"] != "admin":
+    # Only admins and super_admins can create users
+    if not is_admin_or_super_admin(current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only administrators can create user accounts"
@@ -112,8 +113,8 @@ async def logout():
 
 @router.get("/users")
 async def get_users(current_user: dict = Depends(get_current_user)):
-    """Admin-only: Get all users"""
-    if current_user["role"] != "admin":
+    """Admin/Super Admin only: Get all users"""
+    if not is_admin_or_super_admin(current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only administrators can view users"
@@ -130,8 +131,8 @@ async def get_users(current_user: dict = Depends(get_current_user)):
 
 @router.put("/users/{user_id}")
 async def update_user(user_id: str, user_data: UserUpdate, current_user: dict = Depends(get_current_user)):
-    """Admin-only: Update user details"""
-    if current_user["role"] != "admin":
+    """Admin/Super Admin only: Update user details"""
+    if not is_admin_or_super_admin(current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only administrators can update users"
@@ -162,8 +163,8 @@ async def update_user(user_id: str, user_data: UserUpdate, current_user: dict = 
 
 @router.delete("/users/{user_id}")
 async def delete_user(user_id: str, current_user: dict = Depends(get_current_user)):
-    """Admin-only: Delete user"""
-    if current_user["role"] != "admin":
+    """Admin/Super Admin only: Delete user"""
+    if not is_admin_or_super_admin(current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only administrators can delete users"

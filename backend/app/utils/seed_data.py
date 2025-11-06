@@ -23,6 +23,30 @@ async def seed_demo_data():
     else:
         print("Admin user already exists")
 
+    # Create initial super admin user
+    super_admin_exists = await db.users.find_one({"email": "superadmin@yourcompany.com"})
+    if not super_admin_exists:
+        super_admin_data = {
+            "email": "superadmin@yourcompany.com",
+            "full_name": "Super Administrator",
+            "role": "super_admin",
+            "hashed_password": get_password_hash("superadmin123"),
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+        await db.users.insert_one(super_admin_data)
+        print("Super admin user created: superadmin@yourcompany.com / superadmin123")
+    else:
+        # Update existing user to super_admin role if needed
+        if super_admin_exists.get("role") != "super_admin":
+            await db.users.update_one(
+                {"email": "superadmin@yourcompany.com"},
+                {"$set": {"role": "super_admin", "updated_at": datetime.utcnow()}}
+            )
+            print("Updated existing user to super_admin role")
+        else:
+            print("Super admin user already exists")
+
     # Create demo users for testing all roles
     demo_users = [
         {

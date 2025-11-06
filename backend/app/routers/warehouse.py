@@ -12,29 +12,43 @@ async def get_warehouse_dashboard(current_user: dict = Depends(get_current_user)
     try:
         db = get_database()
 
-        # Get pending dispatches
-        pending_dispatch = db.equipment_dispatch.count_documents({"status": "active"})
+        # Get pending dispatches - handle if collection doesn't exist
+        try:
+            pending_dispatch = await db.equipment_dispatch.count_documents({"status": "active"})
+        except Exception:
+            pending_dispatch = 0
 
         # Get expected returns (rentals ending in next 7 days)
-        next_week = datetime.utcnow() + timedelta(days=7)
-        expected_returns = db.rentals.count_documents({
-            "status": {"$in": ["active", "extended"]},
-            "end_date": {"$lte": next_week.isoformat()}
-        })
+        try:
+            next_week = datetime.utcnow() + timedelta(days=7)
+            expected_returns = await db.rentals.count_documents({
+                "status": {"$in": ["active", "extended"]},
+                "end_date": {"$lte": next_week.isoformat()}
+            })
+        except Exception:
+            expected_returns = 0
 
         # Get low stock items (available < 10)
-        low_stock_items = db.equipment.count_documents({"quantity_available": {"$lt": 10}})
+        try:
+            low_stock_items = await db.equipment.count_documents({"quantity_available": {"$lt": 10}})
+        except Exception:
+            low_stock_items = 0
 
         # Get equipment utilization
-        total_equipment = db.equipment.count_documents({})
-        available_equipment = db.equipment.count_documents({"quantity_available": {"$gt": 0}})
-        rented_equipment = db.equipment.count_documents({"quantity_rented": {"$gt": 0}})
+        try:
+            total_equipment = await db.equipment.count_documents({})
+            available_equipment = await db.equipment.count_documents({"quantity_available": {"$gt": 0}})
+            rented_equipment = await db.equipment.count_documents({"quantity_rented": {"$gt": 0}})
+        except Exception:
+            total_equipment = 0
+            available_equipment = 0
+            rented_equipment = 0
 
         equipment_utilization = [
             {"status": "Available", "count": available_equipment, "color": "bg-green-500"},
             {"status": "Rented", "count": rented_equipment, "color": "bg-blue-500"},
-            {"status": "Maintenance", "count": 0, "color": "bg-yellow-500"},  # TODO: Add maintenance tracking
-            {"status": "Damaged", "count": 0, "color": "bg-red-500"}  # TODO: Add damaged tracking
+            {"status": "Maintenance", "count": 0, "color": "bg-yellow-500"},
+            {"status": "Damaged", "count": 0, "color": "bg-red-500"}
         ]
 
         return {
@@ -42,6 +56,8 @@ async def get_warehouse_dashboard(current_user: dict = Depends(get_current_user)
             "expectedReturns": expected_returns,
             "lowStockItems": low_stock_items,
             "totalEquipment": total_equipment,
+            "equipmentRented": rented_equipment,
+            "equipmentAvailable": available_equipment,
             "equipmentUtilization": equipment_utilization
         }
 

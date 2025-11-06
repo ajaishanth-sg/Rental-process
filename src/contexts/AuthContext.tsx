@@ -98,7 +98,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('user', JSON.stringify(userInfo));
       localStorage.setItem('role', payload.role);
 
-      navigate(`/${payload.role}`);
+      // Navigate based on role
+      const rolePath = payload.role === 'super_admin' ? '/super-admin' : `/${payload.role}`;
+      navigate(rolePath);
     } catch (error) {
       console.error('Login error:', error);
       throw error;
