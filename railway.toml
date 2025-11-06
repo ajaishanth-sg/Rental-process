@@ -1,0 +1,18 @@
+# Railway Configuration for Full-Stack Deployment
+
+# This file tells Railway how to build and deploy your application
+# Railway will auto-detect Node.js and use npm by default
+
+# Build Configuration
+# Railway will automatically:
+# 1. Detect Node.js from package.json
+# 2. Run: npm install
+# 3. Run: npm run build
+# 4. Start with: npm start
+
+# Environment Variables needed:
+# - VITE_API_BASE_URL (for frontend)
+# - MONGODB_URI (for backend if deploying backend separately)
+# - SECRET_KEY (for backend if deploying backend separately)
+# - ENVIRONMENT (for backend if deploying backend separately)
+# - FRONTEND_URL (for backend if deploying backend separately)
