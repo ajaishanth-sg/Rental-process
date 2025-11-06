@@ -1,378 +1,511 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { FileText, Users, TrendingUp, Plus, DollarSign, Calendar, BarChart3, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Calendar, FileText, Package, Loader2, User, Mail, MapPin, Phone, Plus } from 'lucide-react';
-import { toast } from 'sonner';
-
-interface Enquiry {
-  id: string;
-  enquiry_id: string;
-  customer_id: string;
-  customer_name: string;
-  customer_email: string;
-  equipment_name: string;
-  quantity: number;
-  rental_duration_days?: number;
-  delivery_location: string;
-  expected_delivery_date: string;
-  special_instructions?: string;
-  status: string;
-  enquiry_date?: string;
-  created_at?: string;
-  updated_at?: string;
-  assigned_salesperson_id?: string;
-  assigned_salesperson_name?: string;
-  is_rental_order?: boolean;
-  // Legacy fields
-  contract_number?: string;
-  project_name?: string;
-  equipment_type?: string;
-  start_date?: string;
-  end_date?: string;
-}
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
+import { CreateContractDialog } from '@/components/forms/CreateContractDialog';
+import { CustomerModule } from '@/components/admin/CustomerModule';
+import { ContractsModule } from '@/components/admin/ContractsModule';
+import EnquiryManagementModule from '@/components/sales/EnquiryManagementModule';
+import QuotationManagementModule from '@/components/sales/QuotationManagementModule';
+import SalesOrderManagementModule from '@/components/sales/SalesOrderManagementModule';
+import CustomerCommunicationModule from '@/components/sales/CustomerCommunicationModule';
+import SalesCrmModule from '@/components/sales/SalesCrmModule';
+import { useToast } from '@/hooks/use-toast';
 
 export const SalesModule = () => {
-  const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null);
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState('overview');
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
-    fetchEnquiries();
-  }, []);
-
-  const fetchEnquiries = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('auth_token');
-      if (!token) return;
-
-      console.log('Admin: Fetching all enquiries from /api/admin/enquiries');
-      const response = await fetch('http://localhost:8000/api/admin/enquiries', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      console.log('Admin enquiries response status:', response.status);
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Admin enquiries data received:', data.length, 'items');
-        setEnquiries(data || []);
-      } else {
-        // If admin endpoint doesn't exist, try sales endpoint as fallback
-        console.log('Admin endpoint not available, trying sales endpoint');
-        const salesResponse = await fetch('http://localhost:8000/api/sales/enquiries', {
+    const fetchDashboardData = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/sales/dashboard', {
           headers: {
-            'Authorization': `Bearer ${token}`,
-          },
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          }
         });
-
-        if (salesResponse.ok) {
-          const data = await salesResponse.json();
-          console.log('Sales enquiries data received:', data.length, 'items');
-          setEnquiries(data || []);
-        } else {
-          console.error('Failed to fetch enquiries:', salesResponse.status);
-          toast.error('Failed to load enquiries');
+        if (response.ok) {
+          const data = await response.json();
+          setDashboardData(data);
         }
+      } catch (error) {
+        console.error('Failed to fetch sales dashboard data:', error);
+      } finally {
+        setLoadingData(false);
       }
-    } catch (error) {
-      console.error('Error fetching enquiries:', error);
-      toast.error('Failed to load enquiries');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-      submitted_by_customer: 'secondary',
-      quotation_created: 'default',
-      quotation_sent: 'default',
-      approved: 'default',
-      rejected: 'destructive',
-      converted_to_order: 'default',
-      pending: 'secondary',
-      active: 'default',
     };
 
-    const formattedStatus = status.replace(/_/g, ' ')
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
+    fetchDashboardData();
+  }, []);
 
-    return (
-      <Badge variant={variants[status] || 'outline'}>
-        {formattedStatus}
-      </Badge>
-    );
-  };
+  useEffect(() => {
+    // Check for hash in URL to set active tab
+    const hash = window.location.hash.replace('#', '');
+    if (hash && ['overview', 'enquiries', 'quotations', 'sales-orders', 'contracts', 'customers', 'communication', 'reports', 'crm'].includes(hash)) {
+      setActiveTab(hash);
+    }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+    // Listen for convert to quotation events from enquiries
+    const handleConvertToQuotation = (event: any) => {
+      if (event.detail) {
+        setActiveTab('quotations');
+        // Dispatch event to QuotationManagementModule
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('openQuotationFromEnquiry', { detail: event.detail }));
+        }, 100);
+      }
+    };
+
+    window.addEventListener('convertToQuotation', handleConvertToQuotation);
+
+    return () => {
+      window.removeEventListener('convertToQuotation', handleConvertToQuotation);
+    };
+  }, []);
+
+  // Update hash when activeTab changes
+  useEffect(() => {
+    if (activeTab !== 'overview') {
+      window.location.hash = activeTab;
+    }
+  }, [activeTab]);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold">Sales & Enquiries</h3>
-          <p className="text-sm text-muted-foreground">View all customer enquiries and rental requests</p>
-        </div>
-        <Button
-          onClick={() => {
-            // Try to focus the sales enquiries area if available
-            try {
-              window.dispatchEvent(new CustomEvent('salesTabChange', { detail: 'enquiries' }));
-            } catch (_) {}
-          }}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Enquiries
-        </Button>
+      <div>
+        <h2 className="text-3xl font-bold tracking-tight">Sales Dashboard</h2>
+        <p className="text-muted-foreground">
+          Manage rental contracts, quotations, and customer relationships
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Enquiries</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{enquiries.length}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {enquiries.filter(e => e.status === 'submitted_by_customer' || e.status === 'pending').length}
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Quotations Created</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {enquiries.filter(e => e.status === 'quotation_created' || e.status === 'quotation_sent').length}
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Converted to Orders</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {enquiries.filter(e => e.status === 'converted_to_order' || e.status === 'approved').length}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-9">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="crm">CRM</TabsTrigger>
+          <TabsTrigger value="enquiries">Enquiries</TabsTrigger>
+          <TabsTrigger value="quotations">Quotations</TabsTrigger>
+          <TabsTrigger value="sales-orders">Sales Orders</TabsTrigger>
+          <TabsTrigger value="contracts">Contracts</TabsTrigger>
+          <TabsTrigger value="customers">Customers</TabsTrigger>
+          <TabsTrigger value="communication">Communication</TabsTrigger>
+          <TabsTrigger value="reports">Reports</TabsTrigger>
+        </TabsList>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All Enquiries ({enquiries.length})</CardTitle>
-          <CardDescription>
-            Customer rental enquiries and requests from all sources
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {enquiries.length === 0 ? (
-            <div className="text-center py-12">
-              <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <p className="text-lg font-semibold mb-2">No Enquiries Yet</p>
-              <p className="text-muted-foreground">
-                Waiting for customers to create enquiries and rental orders
-              </p>
+        <TabsContent value="overview" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div></div>
+            <CreateContractDialog />
+          </div>
+
+          {loadingData ? (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <Card key={i}>
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-4" />
+                  </CardHeader>
+                  <CardContent>
+                    <Skeleton className="h-8 w-16 mb-2" />
+                    <Skeleton className="h-3 w-20" />
+                  </CardContent>
+                </Card>
+              ))}
             </div>
+          ) : !dashboardData ? (
+            <Card>
+              <CardContent className="flex items-center justify-center py-8">
+                <div className="text-center">
+                  <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No Data Available</h3>
+                  <p className="text-muted-foreground">Unable to load sales dashboard data. Please check your connection.</p>
+                </div>
+              </CardContent>
+            </Card>
           ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Enquiry ID</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Equipment</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Delivery Location</TableHead>
-                    <TableHead>Expected Date</TableHead>
-                    <TableHead>Assigned To</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {enquiries.map((enquiry) => (
-                    <TableRow key={enquiry.id}>
-                      <TableCell className="font-medium">
-                        {enquiry.enquiry_id || enquiry.contract_number || enquiry.id.slice(0, 8)}
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{enquiry.customer_name}</p>
-                          <p className="text-sm text-muted-foreground">{enquiry.customer_email}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <p className="font-medium">{enquiry.equipment_name || enquiry.equipment_type || 'N/A'}</p>
-                      </TableCell>
-                      <TableCell>{enquiry.quantity || 1}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">
-                        {enquiry.delivery_location || 'N/A'}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {enquiry.expected_delivery_date 
-                          ? new Date(enquiry.expected_delivery_date).toLocaleDateString()
-                          : enquiry.start_date 
-                          ? new Date(enquiry.start_date).toLocaleDateString()
-                          : 'N/A'
-                        }
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {enquiry.assigned_salesperson_name || (
-                          <span className="text-muted-foreground italic">Unassigned</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => setSelectedEnquiry(enquiry)}
-                            >
-                              <FileText className="h-3 w-3 mr-1" />
-                              Details
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-2xl">
-                            <DialogHeader>
-                              <DialogTitle>Enquiry Details - {enquiry.enquiry_id || enquiry.id.slice(0, 8)}</DialogTitle>
-                              <DialogDescription>
-                                Complete information about this customer enquiry
-                              </DialogDescription>
-                            </DialogHeader>
-                            {selectedEnquiry && (
-                              <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <label className="text-sm font-medium flex items-center gap-2">
-                                      <User className="h-4 w-4" />
-                                      Customer Name
-                                    </label>
-                                    <p className="text-sm text-muted-foreground mt-1">{selectedEnquiry.customer_name}</p>
-                                  </div>
-                                  <div>
-                                    <label className="text-sm font-medium flex items-center gap-2">
-                                      <Mail className="h-4 w-4" />
-                                      Email
-                                    </label>
-                                    <p className="text-sm text-muted-foreground mt-1">{selectedEnquiry.customer_email}</p>
-                                  </div>
-                                  <div>
-                                    <label className="text-sm font-medium">Equipment</label>
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                      {selectedEnquiry.equipment_name || selectedEnquiry.equipment_type || 'N/A'}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <label className="text-sm font-medium">Quantity</label>
-                                    <p className="text-sm text-muted-foreground mt-1">{selectedEnquiry.quantity || 1}</p>
-                                  </div>
-                                  <div>
-                                    <label className="text-sm font-medium flex items-center gap-2">
-                                      <Calendar className="h-4 w-4" />
-                                      Expected Delivery
-                                    </label>
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                      {selectedEnquiry.expected_delivery_date 
-                                        ? new Date(selectedEnquiry.expected_delivery_date).toLocaleDateString()
-                                        : 'N/A'
-                                      }
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <label className="text-sm font-medium">Rental Duration</label>
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                      {selectedEnquiry.rental_duration_days || 'N/A'} {selectedEnquiry.rental_duration_days ? 'days' : ''}
-                                    </p>
-                                  </div>
-                                  <div className="col-span-2">
-                                    <label className="text-sm font-medium flex items-center gap-2">
-                                      <MapPin className="h-4 w-4" />
-                                      Delivery Location
-                                    </label>
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                      {selectedEnquiry.delivery_location || 'N/A'}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <label className="text-sm font-medium">Status</label>
-                                    <div className="mt-1">{getStatusBadge(selectedEnquiry.status)}</div>
-                                  </div>
-                                  <div>
-                                    <label className="text-sm font-medium">Assigned Salesperson</label>
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                      {selectedEnquiry.assigned_salesperson_name || (
-                                        <span className="italic">Unassigned</span>
-                                      )}
-                                    </p>
-                                  </div>
-                                  {selectedEnquiry.special_instructions && (
-                                    <div className="col-span-2">
-                                      <label className="text-sm font-medium">Special Instructions</label>
-                                      <p className="text-sm text-muted-foreground mt-1 p-3 bg-muted rounded-md">
-                                        {selectedEnquiry.special_instructions}
-                                      </p>
-                                    </div>
-                                  )}
-                                  <div>
-                                    <label className="text-sm font-medium">Created At</label>
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                      {selectedEnquiry.created_at 
-                                        ? new Date(selectedEnquiry.created_at).toLocaleString()
-                                        : 'N/A'
-                                      }
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <label className="text-sm font-medium">Last Updated</label>
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                      {selectedEnquiry.updated_at 
-                                        ? new Date(selectedEnquiry.updated_at).toLocaleString()
-                                        : 'N/A'
-                                      }
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </DialogContent>
-                        </Dialog>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Active Contracts
+                  </CardTitle>
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{typeof dashboardData.activeContracts === 'number' ? dashboardData.activeContracts : (typeof dashboardData.convertedContracts === 'number' ? dashboardData.convertedContracts : 0)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    <span className="text-success">+{dashboardData.newContractsThisWeek || 0}</span> new this week
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Pending Approval
+                  </CardTitle>
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{typeof dashboardData.pendingApprovals === 'number' ? dashboardData.pendingApprovals : (typeof dashboardData.activeQuotations === 'number' ? dashboardData.activeQuotations : 0)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Requires attention</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Revenue (Month)
+                  </CardTitle>
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">${typeof dashboardData.monthlyRevenue === 'number' ? dashboardData.monthlyRevenue.toLocaleString() : '0'}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    <span className="text-success">+{typeof dashboardData.revenueGrowth === 'number' ? dashboardData.revenueGrowth : 0}%</span> vs last month
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Total Customers
+                  </CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{typeof dashboardData.totalCustomers === 'number' ? dashboardData.totalCustomers : 0}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    <span className="text-success">+{typeof dashboardData.newCustomersThisMonth === 'number' ? dashboardData.newCustomersThisMonth : 0}</span> new this month
+                  </p>
+                </CardContent>
+              </Card>
             </div>
           )}
-        </CardContent>
-      </Card>
+
+          {dashboardData?.recentContracts && dashboardData.recentContracts.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Contracts</CardTitle>
+                  <CardDescription>Latest rental agreements and their status</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Contract ID</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {dashboardData.recentContracts.map((contract: any, index: number) => (
+                        <TableRow key={contract?.id || index}>
+                          <TableCell className="font-medium">{contract?.id || "N/A"}</TableCell>
+                          <TableCell>{contract?.customer || "N/A"}</TableCell>
+                          <TableCell className="font-semibold">${contract?.amount?.toLocaleString() || "0"}</TableCell>
+                          <TableCell>
+                            <Badge variant={contract?.status === 'active' ? 'default' : 'secondary'}>
+                              {contract?.status?.replace('_', ' ') || "unknown"}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Top Customers</CardTitle>
+                  <CardDescription>Highest revenue generators this month</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {dashboardData.topCustomers && dashboardData.topCustomers.length > 0 ? (
+                      dashboardData.topCustomers.map((customer: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex-1">
+                            <p className="font-semibold">{customer?.name || "N/A"}</p>
+                            <p className="text-sm text-muted-foreground">{customer?.contracts || 0} active contracts</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold">${customer?.revenue?.toLocaleString() || "0"}</p>
+                            <p className="text-xs text-success">{customer?.trend || "N/A"}</p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-4">
+                        <p className="text-muted-foreground">No top customers data available</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {dashboardData?.pendingQuotations && dashboardData.pendingQuotations.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Pending Quotations</CardTitle>
+                <CardDescription>Awaiting customer approval</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Quote ID</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Project</TableHead>
+                      <TableHead>Equipment</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Valid Until</TableHead>
+                      <TableHead>Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {dashboardData.pendingQuotations.map((quote: any, index: number) => (
+                      <TableRow key={quote?.id || index}>
+                        <TableCell className="font-medium">{quote?.id || "N/A"}</TableCell>
+                        <TableCell>{quote?.customer || "N/A"}</TableCell>
+                        <TableCell>{quote?.project || "N/A"}</TableCell>
+                        <TableCell className="text-sm">{quote?.equipment || "N/A"}</TableCell>
+                        <TableCell className="font-semibold">${quote?.amount?.toLocaleString() || "0"}</TableCell>
+                        <TableCell className="text-sm">{quote?.validUntil || "N/A"}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => toast({ title: 'Follow Up', description: `Following up with ${quote?.customer || "customer"}` })}
+                          >
+                            Follow Up
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="crm">
+          <SalesCrmModule />
+        </TabsContent>
+
+        <TabsContent value="enquiries">
+          <EnquiryManagementModule />
+        </TabsContent>
+
+        <TabsContent value="quotations">
+          <QuotationManagementModule />
+        </TabsContent>
+
+        <TabsContent value="sales-orders">
+          <SalesOrderManagementModule />
+        </TabsContent>
+
+        <TabsContent value="contracts">
+          <ContractsModule />
+        </TabsContent>
+
+        <TabsContent value="customers">
+          <CustomerModule />
+        </TabsContent>
+
+        <TabsContent value="communication">
+          <CustomerCommunicationModule />
+        </TabsContent>
+
+        <TabsContent value="reports">
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Sales Reports</CardTitle>
+                <CardDescription>Analytics and insights for sales performance</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {dashboardData?.salesReports ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Enquiry Conversion Rate</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">{dashboardData.salesReports.enquiryConversionRate || 0}%</div>
+                        <p className="text-xs text-muted-foreground">+{dashboardData.salesReports.conversionGrowth || 0}% from last month</p>
+                      </CardContent>
+                    </Card>
+   
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Monthly Revenue</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">${dashboardData.salesReports.monthlyRevenue?.toLocaleString() || "0"}</div>
+                        <p className="text-xs text-muted-foreground">+{dashboardData.salesReports.revenueGrowth || 0}% from last month</p>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Active Contracts</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">{dashboardData.salesReports.activeContracts || 0}</div>
+                        <p className="text-xs text-muted-foreground">+{dashboardData.salesReports.newContractsThisWeek || 0} new this week</p>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Average Deal Size</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">${dashboardData.salesReports.averageDealSize?.toLocaleString() || "0"}</div>
+                        <p className="text-xs text-muted-foreground">+{dashboardData.salesReports.dealSizeGrowth || 0}% from last month</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[1, 2, 3, 4].map((i) => (
+                      <Card key={i}>
+                        <CardHeader className="pb-2">
+                          <Skeleton className="h-5 w-32" />
+                        </CardHeader>
+                        <CardContent>
+                          <Skeleton className="h-8 w-16 mb-2" />
+                          <Skeleton className="h-3 w-24" />
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+
+                {dashboardData?.salesReports?.revenueTrends ? (
+                  <div className="mt-6">
+                    <h3 className="text-lg font-semibold mb-4">Revenue Trends</h3>
+                    <div className="h-64 flex items-center justify-center border-2 border-dashed border-muted-foreground/25 rounded-lg">
+                      <div className="text-center">
+                        <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-muted-foreground">Revenue chart data: {JSON.stringify(dashboardData.salesReports.revenueTrends)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-6">
+                    <h3 className="text-lg font-semibold mb-4">Revenue Trends</h3>
+                    <div className="h-64 flex items-center justify-center border-2 border-dashed border-muted-foreground/25 rounded-lg">
+                      <div className="text-center">
+                        <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-muted-foreground">No revenue trend data available</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Active vs Closed Contracts Summary</CardTitle>
+                  <CardDescription>Overview of contract status distribution</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {dashboardData?.salesReports?.contractStatusSummary && dashboardData.salesReports.contractStatusSummary.length > 0 ? (
+                    <div className="space-y-4">
+                      {dashboardData.salesReports.contractStatusSummary.map((status: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-3 h-3 ${status?.color || "bg-gray-400"} rounded-full`}></div>
+                            <span className="font-medium">{status?.label || "N/A"}</span>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold">{status?.count || 0}</p>
+                            <p className="text-sm text-muted-foreground">{status?.percentage || 0}% of total</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-muted-foreground">No contract status data available</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Enquiry to Contract Conversion</CardTitle>
+                  <CardDescription>Track the sales funnel performance</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {dashboardData?.salesReports?.conversionFunnel && dashboardData.salesReports.conversionFunnel.length > 0 ? (
+                    <div className="space-y-4">
+                      {dashboardData.salesReports.conversionFunnel.map((stage: any, i: number) => (
+                        <div key={i} className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>{stage?.label || "N/A"}</span>
+                            <span className="font-medium">{stage?.count || 0}</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div className={`h-2 rounded-full ${stage?.color || "bg-gray-400"}`} style={{width: `${stage?.percentage || 0}%`}}></div>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                        <p className="text-sm text-blue-800">
+                          <strong>Conversion Rate:</strong> {dashboardData.salesReports.overallConversionRate || 0}% (Enquiries to Contracts)
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-muted-foreground">No conversion funnel data available</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Download Reports</CardTitle>
+                <CardDescription>Export detailed sales reports</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-4">
+                  <Button variant="outline">
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    Download Excel Report
+                  </Button>
+                  <Button variant="outline">
+                    <FileText className="h-4 w-4 mr-2" />
+                    View Detailed Report
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
-

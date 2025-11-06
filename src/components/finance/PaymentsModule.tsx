@@ -134,51 +134,207 @@ export const PaymentsModule = () => {
       </div>
 
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Payment Details</DialogTitle>
-            <DialogDescription>Payment information and transaction details</DialogDescription>
-          </DialogHeader>
-          {viewingPayment && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium">Payment ID</Label>
-                  <p className="text-sm text-muted-foreground">{viewingPayment.id}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Invoice ID</Label>
-                  <p className="text-sm text-muted-foreground">{viewingPayment.invoiceId}</p>
-                </div>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto p-0">
+          {/* Professional Document Layout */}
+          <div className="relative bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50">
+            {/* Blue Vertical Stripe */}
+            <div className="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-b from-blue-700 to-blue-600"></div>
+            
+            {/* Document Content */}
+            <div className="ml-8 pr-8 py-8">
+              {/* Header */}
+              <div className="text-center mb-8">
+                <h2 className="text-3xl font-bold text-gray-900 tracking-wide">Payment Client Information Sheet</h2>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium">Customer</Label>
-                  <p className="text-sm text-muted-foreground">{viewingPayment.customer}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Amount</Label>
-                  <p className="text-sm text-muted-foreground">AED {viewingPayment.amount.toLocaleString()}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium">Payment Method</Label>
-                  <p className="text-sm text-muted-foreground capitalize">{viewingPayment.method.replace('_', ' ')}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Date</Label>
-                  <p className="text-sm text-muted-foreground">{viewingPayment.date}</p>
-                </div>
-              </div>
-              {viewingPayment.reference && (
-                <div>
-                  <Label className="text-sm font-medium">Reference</Label>
-                  <p className="text-sm text-muted-foreground">{viewingPayment.reference}</p>
+
+              {viewingPayment && (
+                <div className="space-y-8 bg-white rounded-lg shadow-lg p-8">
+                  {/* CLIENT INFORMATION Section */}
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 uppercase mb-6 pb-2 border-b-2 border-gray-300">
+                      Client Information
+                    </h3>
+                    <div className="grid grid-cols-2 gap-6">
+                      {/* Left Column - Client Details */}
+                      <div className="space-y-4">
+                        <div className="flex items-start gap-3">
+                          <Label className="text-sm font-semibold text-gray-700 min-w-[140px]">Client Name:</Label>
+                          <div className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white text-sm font-medium text-gray-900">
+                            {viewingPayment.customer || 'N/A'}
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <Label className="text-sm font-semibold text-gray-700 min-w-[140px]">Payment ID:</Label>
+                          <div className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white text-sm font-medium text-gray-900">
+                            {viewingPayment.id}
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <Label className="text-sm font-semibold text-gray-700 min-w-[140px]">Invoice ID:</Label>
+                          <div className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white text-sm font-medium text-gray-900">
+                            {viewingPayment.invoiceId || 'N/A'}
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <Label className="text-sm font-semibold text-gray-700 min-w-[140px]">Payment Date:</Label>
+                          <div className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white text-sm font-medium text-gray-900">
+                            {new Date(viewingPayment.date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })}
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <Label className="text-sm font-semibold text-gray-700 min-w-[140px]">Payment Status:</Label>
+                          <div className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white text-sm font-medium text-gray-900 capitalize">
+                            {viewingPayment.status}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right Column - Payment Details */}
+                      <div className="space-y-4">
+                        <div className="flex items-start gap-3">
+                          <Label className="text-sm font-semibold text-gray-700 min-w-[140px]">Payment Method:</Label>
+                          <div className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white text-sm font-medium text-gray-900 capitalize">
+                            {viewingPayment.method.replace('_', ' ')}
+                          </div>
+                        </div>
+                        {viewingPayment.reference && (
+                          <div className="flex items-start gap-3">
+                            <Label className="text-sm font-semibold text-gray-700 min-w-[140px]">Reference No.:</Label>
+                            <div className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white text-sm font-medium text-gray-900">
+                              {viewingPayment.reference}
+                            </div>
+                          </div>
+                        )}
+                        <div className="flex items-start gap-3">
+                          <Label className="text-sm font-semibold text-gray-700 min-w-[140px]">Transaction ID:</Label>
+                          <div className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white text-sm font-medium text-gray-900">
+                            {viewingPayment.reference || viewingPayment.id || 'N/A'}
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <Label className="text-sm font-semibold text-gray-700 min-w-[140px]">Currency:</Label>
+                          <div className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white text-sm font-medium text-gray-900">
+                            {viewingPayment.currency || 'AED'}
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <Label className="text-sm font-semibold text-gray-700 min-w-[140px]">Payment Year:</Label>
+                          <div className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white text-sm font-medium text-gray-900">
+                            {new Date(viewingPayment.date).getFullYear()}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* PAYMENT BREAKDOWN Section */}
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 uppercase mb-6 pb-2 border-b-2 border-gray-300">
+                      Payment Breakdown
+                    </h3>
+                    <div className="grid grid-cols-2 gap-8">
+                      {/* Left Column - Summary of Charges */}
+                      <div className="space-y-4">
+                        <div className="flex items-start gap-3">
+                          <Label className="text-sm font-semibold text-gray-700 min-w-[140px]">Total Amount:</Label>
+                          <div className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white text-sm font-bold text-gray-900">
+                            AED {viewingPayment.amount.toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <Label className="text-sm font-semibold text-gray-700 min-w-[140px]">Processing Fee:</Label>
+                          <div className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white text-sm font-medium text-gray-900">
+                            AED {((viewingPayment.amount || 0) * 0.02).toFixed(2)}
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <Label className="text-sm font-semibold text-gray-700 min-w-[140px]">Adjustments:</Label>
+                          <div className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white text-sm font-medium text-gray-900">
+                            AED 0.00
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3 border-t-2 border-gray-400 pt-3">
+                          <Label className="text-sm font-bold text-gray-900 min-w-[140px]">Total Due:</Label>
+                          <div className="flex-1 border-2 border-gray-400 rounded px-3 py-2 bg-gray-50 text-sm font-bold text-gray-900">
+                            AED {((viewingPayment.amount || 0) * 1.02).toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right Column - Payment History */}
+                      <div className="space-y-4">
+                        <div className="flex items-start gap-3">
+                          <Label className="text-sm font-semibold text-gray-700 min-w-[140px]">Payment 1:</Label>
+                          <div className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white text-sm font-medium text-gray-900">
+                            AED {viewingPayment.amount.toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <Label className="text-sm font-semibold text-gray-700 min-w-[140px]">Payment 2:</Label>
+                          <div className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white text-sm font-medium text-gray-900">
+                            AED 0.00
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3 border-t-2 border-gray-400 pt-3">
+                          <Label className="text-sm font-bold text-gray-900 min-w-[140px]">Balance Due:</Label>
+                          <div className="flex-1 border-2 border-gray-400 rounded px-3 py-2 bg-gray-50 text-sm font-bold text-gray-900">
+                            AED {((viewingPayment.amount || 0) * 0.02).toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* TRANSACTION DETAILS Section */}
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 uppercase mb-6 pb-2 border-b-2 border-gray-300">
+                      Transaction Details
+                    </h3>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="flex items-start gap-3">
+                          <Label className="text-sm font-semibold text-gray-700 min-w-[120px]">Method:</Label>
+                          <div className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white text-sm font-medium text-gray-900 capitalize">
+                            {viewingPayment.method.replace('_', ' ')}
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <Label className="text-sm font-semibold text-gray-700 min-w-[120px]">Status:</Label>
+                          <div className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white text-sm font-medium text-gray-900 capitalize">
+                            {viewingPayment.status}
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <Label className="text-sm font-semibold text-gray-700 min-w-[120px]">Date:</Label>
+                          <div className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white text-sm font-medium text-gray-900">
+                            {new Date(viewingPayment.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                          </div>
+                        </div>
+                      </div>
+                      {viewingPayment.reference && (
+                        <div className="flex items-start gap-3">
+                          <Label className="text-sm font-semibold text-gray-700 min-w-[140px]">Transaction Reference:</Label>
+                          <div className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white text-sm font-medium text-gray-900 font-mono">
+                            {viewingPayment.reference}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Footer Actions */}
+                  <div className="flex justify-end gap-3 pt-6 border-t border-gray-300">
+                    <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
+                      Close
+                    </Button>
+                    <Button onClick={() => window.print()}>
+                      Print
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
-          )}
+          </div>
         </DialogContent>
       </Dialog>
 

@@ -70,10 +70,12 @@ const SalesOrderManagementModule = () => {
   };
 
 
-  const handleCheckStock = async (salesOrderId: string) => {
+  const handleCheckStock = async (order: SalesOrder) => {
     try {
       const token = localStorage.getItem('auth_token');
-      console.log('Checking stock for sales order:', salesOrderId);
+      // Try multiple ID fields to find the correct one
+      const salesOrderId = order.sales_order_id || order.quotation_id || order.quotationId || order.id;
+      console.log('Checking stock for sales order:', salesOrderId, order);
 
       const response = await fetch(`http://localhost:8000/api/sales/orders/${salesOrderId}/check-stock`, {
         method: 'PUT',
@@ -85,31 +87,31 @@ const SalesOrderManagementModule = () => {
 
       if (response.ok) {
         const result = await response.json();
-        const isAvailable = result.stock_available;
+        const isAvailable = result.stock_available || result.stockAvailable;
 
         console.log('Stock check result:', result);
 
         setStockCheckResults({ ...stockCheckResults, [salesOrderId]: isAvailable });
 
-        // Update the sales order in state - match by sales_order_id
-        setSalesOrders(salesOrders.map(order => {
-          const orderSalesId = order.sales_order_id || order.quotationId;
-          return orderSalesId === salesOrderId
-            ? { ...order, stockChecked: true, stock_checked: true, stockAvailable: isAvailable, stock_available: isAvailable }
-            : order;
+        // Update the sales order in state - match by any ID field
+        setSalesOrders(salesOrders.map(o => {
+          const oSalesId = o.sales_order_id || o.quotation_id || o.quotationId || o.id;
+          return oSalesId === salesOrderId
+            ? { ...o, stockChecked: true, stock_checked: true, stockAvailable: isAvailable, stock_available: isAvailable }
+            : o;
         }));
 
         sonnerToast.success(
           isAvailable ? '✅ All items are in stock!' : '⚠️ Some items are out of stock'
         );
       } else {
-        const errorText = await response.text();
-        console.error('Failed to check stock:', errorText);
-        sonnerToast.error(`Failed to check stock: ${errorText}`);
+        const errorData = await response.json().catch(() => ({ detail: 'Failed to check stock' }));
+        console.error('Failed to check stock:', errorData);
+        sonnerToast.error(`Failed to check stock: ${errorData.detail || 'Unknown error'}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error checking stock:', error);
-      sonnerToast.error('Failed to check stock');
+      sonnerToast.error(`Failed to check stock: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -276,7 +278,7 @@ const SalesOrderManagementModule = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleCheckStock(displayId)}
+                              onClick={() => handleCheckStock(order)}
                             >
                               <CheckCircle className="h-3 w-3 mr-1" />
                               Check Stock

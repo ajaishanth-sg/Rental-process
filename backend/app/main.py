@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import auth, rentals, invoices, customers, returns, support, reports, equipment, admin, events, uom, rates, currencies, vat, contracts, warehouse, finance, sales, crm
+from .routers import auth, rentals, invoices, customers, returns, support, reports, equipment, admin, events, uom, rates, currencies, vat, contracts, warehouse, finance, sales, crm, hr
 from .utils.database import connect_to_mongo, close_mongo_connection
 from .utils.seed_data import seed_demo_data
 
@@ -10,13 +10,14 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Configure CORS
+# Configure CORS - Allow all localhost origins for development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3005"],  # React dev server
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?",
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Include routers
@@ -39,6 +40,7 @@ app.include_router(warehouse.router, prefix="/api/warehouse", tags=["Warehouse"]
 app.include_router(finance.router, prefix="/api/finance", tags=["Finance"])
 app.include_router(sales.router, prefix="/api/sales", tags=["Sales"])
 app.include_router(crm.router, prefix="/api/crm", tags=["CRM"])
+app.include_router(hr.router, prefix="/api/hr", tags=["HR"])
 
 @app.on_event("startup")
 async def startup_event():

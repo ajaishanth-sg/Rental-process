@@ -124,6 +124,15 @@ const Auth = () => {
               )}
             </Button>
           </form>
+          
+          <div className="mt-4 text-center">
+            <Link 
+              to="/" 
+              className="text-sm text-muted-foreground hover:text-primary transition-colors underline"
+            >
+              Home
+            </Link>
+          </div>
         </CardContent>
       </Card>
       </div>

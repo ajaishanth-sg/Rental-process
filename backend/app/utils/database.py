@@ -69,6 +69,73 @@ mock_database = {
             "created_at": "2025-01-01T00:00:00Z",
             "updated_at": "2025-01-01T00:00:00Z"
         }
+    ],
+    "payments": [
+        {
+            "_id": "PAY-2025-001",
+            "invoice_id": "INV-2025-001",
+            "customer_name": "ABC Construction LLC",
+            "amount": 13125,
+            "currency": "AED",
+            "method": "Bank Transfer",
+            "date": "2025-01-20",
+            "status": "completed",
+            "reference": "BT-123456"
+        },
+        {
+            "_id": "PAY-2025-002",
+            "invoice_id": "INV-2025-002",
+            "customer_name": "XYZ Builders",
+            "amount": 5000,
+            "currency": "AED",
+            "method": "Cheque",
+            "date": "2025-01-22",
+            "status": "pending",
+            "reference": "CHQ-789012"
+        },
+        {
+            "_id": "PAY-2025-003",
+            "invoice_id": "INV-2025-003",
+            "customer_name": "Elite Construction",
+            "amount": 15960,
+            "currency": "AED",
+            "method": "Cash",
+            "date": "2025-01-18",
+            "status": "completed",
+            "reference": "CASH-345678"
+        }
+    ],
+    "deposits": [
+        {
+            "_id": "DEP-2025-001",
+            "customer_name": "ABC Construction LLC",
+            "amount": 2500,
+            "currency": "AED",
+            "type": "Security Deposit",
+            "date": "2025-01-15",
+            "status": "held",
+            "return_date": None
+        },
+        {
+            "_id": "DEP-2025-002",
+            "customer_name": "XYZ Builders",
+            "amount": 1800,
+            "currency": "AED",
+            "type": "Security Deposit",
+            "date": "2025-02-01",
+            "status": "held",
+            "return_date": None
+        },
+        {
+            "_id": "DEP-2025-003",
+            "customer_name": "Modern Builders",
+            "amount": 2000,
+            "currency": "AED",
+            "type": "Damage Deposit",
+            "date": "2025-01-10",
+            "status": "returned",
+            "return_date": "2025-01-25"
+        }
     ]
 }
 

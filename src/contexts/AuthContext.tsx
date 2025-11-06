@@ -47,11 +47,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username: email, password }),
+        body: JSON.stringify({ email: email, password }),
       });
 
       if (!response.ok) {
-        throw new Error('Invalid credentials');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Invalid credentials');
       }
 
       const data = await response.json();
@@ -60,11 +61,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Decode token to get user info
       const payload = JSON.parse(atob(token.split('.')[1]));
       const role = payload.role;
-      const userInfo = {
-        id: `demo-${role}`, // Match backend demo user ID format
+      
+      // Fetch full user info from backend
+      let userInfo = {
+        id: payload.sub,
         email: payload.sub,
-        name: `Demo ${role.charAt(0).toUpperCase() + role.slice(1)}`, // Proper name format
+        name: role.charAt(0).toUpperCase() + role.slice(1),
       };
+      
+      try {
+        const userResponse = await fetch('http://localhost:8000/api/auth/me', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          userInfo = {
+            id: userData.id,
+            email: userData.email,
+            name: userData.name || userData.full_name || userInfo.name,
+          };
+        }
+      } catch (error) {
+        console.error('Error fetching user info:', error);
+        // Continue with decoded token info if fetch fails
+      }
 
       setUser(userInfo);
       setRole(payload.role);

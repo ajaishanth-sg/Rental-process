@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 export const AddRemoveEquipmentDialog = () => {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
+  const [submitting, setSubmitting] = useState(false);
   const [addFormData, setAddFormData] = useState({
     itemName: '',
     itemCode: '',
@@ -30,8 +31,56 @@ export const AddRemoveEquipmentDialog = () => {
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Prevent double submission
+    if (submitting) {
+      return;
+    }
+
+    // Validate required fields
+    if (!addFormData.itemName || !addFormData.itemCode || !addFormData.category || !addFormData.quantity || !addFormData.uom || !addFormData.location) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please fill in all required fields (Item Name, Item Code, Category, Quantity, UoM, and Location).',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate quantity is a valid number
+    const quantityNum = parseInt(addFormData.quantity);
+    if (isNaN(quantityNum) || quantityNum <= 0) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter a valid quantity greater than 0.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSubmitting(true);
+
     try {
       const token = localStorage.getItem('auth_token');
+      if (!token) {
+        toast({
+          title: 'Authentication Error',
+          description: 'Please log in again.',
+          variant: 'destructive',
+        });
+        setSubmitting(false);
+        return;
+      }
+
+      console.log('Submitting equipment addition:', {
+        item_code: addFormData.itemCode,
+        description: addFormData.itemName,
+        category: addFormData.category,
+        unit: addFormData.uom,
+        quantity_total: quantityNum,
+        quantity_available: quantityNum,
+        location: addFormData.location
+      });
+
       const response = await fetch('http://localhost:8000/api/equipment/', {
         method: 'POST',
         headers: {
@@ -44,33 +93,42 @@ export const AddRemoveEquipmentDialog = () => {
           category: addFormData.category,
           unit: addFormData.uom,
           daily_rate: 0, // Default rate, can be updated later
-          quantity_total: parseInt(addFormData.quantity),
-          quantity_available: parseInt(addFormData.quantity),
+          quantity_total: quantityNum,
+          quantity_available: quantityNum,
           location: addFormData.location
         })
       });
 
+      const responseData = await response.json().catch(() => null);
+
       if (response.ok) {
         toast({
-          title: 'Equipment Addition Submitted',
-          description: `${addFormData.itemName} addition submitted for admin approval.`,
+          title: 'Success',
+          description: `${addFormData.itemName} has been added successfully.`,
         });
         setAddFormData({ itemName: '', itemCode: '', category: '', quantity: '', uom: '', location: '', remarks: '' });
         setOpen(false);
+        // Trigger page refresh or data refetch
+        window.dispatchEvent(new CustomEvent('equipmentAdded'));
+        // Trigger stock data refresh in warehouse dashboard
+        window.dispatchEvent(new CustomEvent('stockDataRefresh'));
       } else {
-        const error = await response.json();
+        console.error('Error response:', responseData);
         toast({
           title: 'Error',
-          description: typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail) || 'Failed to submit equipment addition',
+          description: typeof responseData?.detail === 'string' ? responseData.detail : JSON.stringify(responseData?.detail) || `Failed to submit equipment addition. Status: ${response.status}`,
           variant: 'destructive',
         });
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error submitting equipment addition:', error);
       toast({
         title: 'Error',
-        description: 'Failed to submit equipment addition. Please check your connection.',
+        description: error.message || 'Failed to submit equipment addition. Please check your connection.',
         variant: 'destructive',
       });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -142,7 +200,7 @@ export const AddRemoveEquipmentDialog = () => {
             <form onSubmit={handleAddSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="itemName">Item Name</Label>
+                  <Label htmlFor="itemName">Item Name <span className="text-red-500">*</span></Label>
                   <Input
                     id="itemName"
                     value={addFormData.itemName}
@@ -152,7 +210,7 @@ export const AddRemoveEquipmentDialog = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="itemCode">Item Code</Label>
+                  <Label htmlFor="itemCode">Item Code <span className="text-red-500">*</span></Label>
                   <Input
                     id="itemCode"
                     value={addFormData.itemCode}
@@ -165,29 +223,34 @@ export const AddRemoveEquipmentDialog = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="category">Category</Label>
-                  <Select value={addFormData.category} onValueChange={(val) => setAddFormData({ ...addFormData, category: val })}>
-                    <SelectTrigger>
+                  <Label htmlFor="category">Category <span className="text-red-500">*</span></Label>
+                  <Select 
+                    value={addFormData.category} 
+                    onValueChange={(val) => setAddFormData({ ...addFormData, category: val })}
+                    required
+                  >
+                    <SelectTrigger id="category">
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="rod">Rod</SelectItem>
-                      <SelectItem value="sheet">Sheet</SelectItem>
-                      <SelectItem value="pipe">Pipe</SelectItem>
                       <SelectItem value="scaffolding">Scaffolding</SelectItem>
                       <SelectItem value="formwork">Formwork</SelectItem>
                       <SelectItem value="shoring">Shoring</SelectItem>
+                      <SelectItem value="safety">Safety</SelectItem>
+                      <SelectItem value="tools">Tools</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="quantity">Quantity</Label>
+                  <Label htmlFor="quantity">Quantity <span className="text-red-500">*</span></Label>
                   <Input
                     id="quantity"
                     type="number"
                     value={addFormData.quantity}
                     onChange={(e) => setAddFormData({ ...addFormData, quantity: e.target.value })}
                     placeholder="10"
+                    min="1"
                     required
                   />
                 </div>
@@ -195,9 +258,13 @@ export const AddRemoveEquipmentDialog = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="uom">Unit of Measurement (UoM)</Label>
-                  <Select value={addFormData.uom} onValueChange={(val) => setAddFormData({ ...addFormData, uom: val })}>
-                    <SelectTrigger>
+                  <Label htmlFor="uom">Unit of Measurement (UoM) <span className="text-red-500">*</span></Label>
+                  <Select 
+                    value={addFormData.uom} 
+                    onValueChange={(val) => setAddFormData({ ...addFormData, uom: val })}
+                    required
+                  >
+                    <SelectTrigger id="uom">
                       <SelectValue placeholder="Select UoM" />
                     </SelectTrigger>
                     <SelectContent>
@@ -210,7 +277,7 @@ export const AddRemoveEquipmentDialog = () => {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="location">Location</Label>
+                  <Label htmlFor="location">Location <span className="text-red-500">*</span></Label>
                   <Input
                     id="location"
                     value={addFormData.location}
@@ -232,11 +299,16 @@ export const AddRemoveEquipmentDialog = () => {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-4">
+              <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit">Submit for Approval</Button>
+                <Button 
+                  type="submit"
+                  disabled={submitting}
+                >
+                  {submitting ? 'Submitting...' : 'Submit for Approval'}
+                </Button>
               </div>
             </form>
           </TabsContent>

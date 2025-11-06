@@ -122,10 +122,18 @@ const QuotationManagementModule = () => {
       }
     };
 
+    const handleConvertToQuotationEvent = (event: any) => {
+      if (event.detail) {
+        handleConvertToQuotation(event.detail);
+      }
+    };
+
     window.addEventListener('openQuotationFromEnquiry', handleOpenQuotationFromEnquiry);
+    window.addEventListener('convertToQuotation', handleConvertToQuotationEvent);
 
     return () => {
       window.removeEventListener('openQuotationFromEnquiry', handleOpenQuotationFromEnquiry);
+      window.removeEventListener('convertToQuotation', handleConvertToQuotationEvent);
     };
   }, []);
   const [newQuotation, setNewQuotation] = useState({
@@ -228,20 +236,28 @@ const QuotationManagementModule = () => {
         // If this quotation was created from a rental order enquiry, update the enquiry status
         if (selectedEnquiry && selectedEnquiry.is_rental_order) {
           // Update the enquiry status to quotation_created
-          const statusResponse = await fetch(`http://localhost:8000/api/sales/enquiries/${selectedEnquiry.enquiry_id}/status`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-            },
-            body: JSON.stringify({ status: 'quotation_created' }),
-          });
+          const enquiryId = selectedEnquiry.enquiry_id || selectedEnquiry.id;
+          if (enquiryId) {
+            try {
+              const statusResponse = await fetch(`http://localhost:8000/api/sales/enquiries/${enquiryId}/status`, {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+                },
+                body: JSON.stringify({ status: 'quotation_created' }),
+              });
 
-          if (statusResponse.ok) {
-            toast({
-              title: 'Enquiry Updated',
-              description: `Enquiry ${selectedEnquiry.enquiry_id} status updated to quotation created`
-            });
+              if (statusResponse.ok) {
+                toast({
+                  title: 'Enquiry Updated',
+                  description: `Enquiry ${enquiryId} status updated to quotation created`
+                });
+              }
+            } catch (error) {
+              console.error('Error updating enquiry status:', error);
+              // Don't show error to user as quotation was created successfully
+            }
           }
         }
 
@@ -296,7 +312,10 @@ const QuotationManagementModule = () => {
         return;
       }
 
-      const response = await fetch(`http://localhost:8000/api/sales/quotations/${quotation.id}/send`, {
+      // Use quotation_id if available, otherwise use id
+      const quotationId = quotation.quotation_id || quotation.id;
+      
+      const response = await fetch(`http://localhost:8000/api/sales/quotations/${quotationId}/send`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -311,21 +330,21 @@ const QuotationManagementModule = () => {
 
         toast({
           title: 'Quotation Sent for Approval',
-          description: `Quotation ${quotation.id} has been sent to Admin Contract Oversight for approval`
+          description: `Quotation ${quotationId} has been sent to Admin Contract Oversight for approval`
         });
       } else {
-        const errorText = await response.text();
+        const errorData = await response.json().catch(() => ({ detail: 'Failed to send quotation' }));
         toast({
           title: 'Error',
-          description: `Failed to send quotation: ${errorText}`,
+          description: `Failed to send quotation: ${errorData.detail || 'Unknown error'}`,
           variant: 'destructive'
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending quotation:', error);
       toast({
         title: 'Error',
-        description: 'Failed to send quotation. Please try again.',
+        description: `Failed to send quotation: ${error.message || 'Unknown error'}`,
         variant: 'destructive'
       });
     }

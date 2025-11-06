@@ -157,6 +157,34 @@ const WarehouseDashboard = () => {
     }
   }, [user, role]);
 
+  // Listen for stock data refresh events
+  useEffect(() => {
+    const handleStockDataRefresh = () => {
+      const fetchStockData = async () => {
+        try {
+          const response = await fetch('http://localhost:8000/api/warehouse/stock', {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+            }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setStockData(data);
+          }
+        } catch (error) {
+          console.error('Failed to fetch stock data:', error);
+        }
+      };
+      fetchStockData();
+    };
+
+    window.addEventListener('stockDataRefresh', handleStockDataRefresh);
+
+    return () => {
+      window.removeEventListener('stockDataRefresh', handleStockDataRefresh);
+    };
+  }, []);
+
   if (loading) return null;
 
   return (

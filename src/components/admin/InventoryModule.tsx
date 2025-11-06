@@ -2,394 +2,790 @@ import { useState, useEffect } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, CheckCircle, XCircle, Package, AlertTriangle, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
-
-const transactionData = [
-  { id: '1', itemCode: 'SCAFF-001', type: 'dispatch', quantity: 10, reason: 'New rental contract RC-2025-001', date: '2025-01-20', approved: true, approvedBy: 'Warehouse Manager' },
-  { id: '2', itemCode: 'FORM-001', type: 'return', quantity: 5, reason: 'Contract completion RC-2025-003', date: '2025-01-19', approved: true, approvedBy: 'Warehouse Manager' },
-  { id: '3', itemCode: 'SHORE-001', type: 'damage', quantity: 2, reason: 'Equipment damaged during use', date: '2025-01-18', approved: false, approvedBy: null },
-  { id: '4', itemCode: 'SAFETY-001', type: 'adjustment', quantity: -3, reason: 'Inventory count discrepancy', date: '2025-01-17', approved: true, approvedBy: 'Warehouse Manager' },
-];
+import { Package, Truck, AlertCircle, FileText, BarChart3 } from 'lucide-react';
+import { WarehouseOrdersModule } from '@/components/admin/WarehouseOrdersModule';
+import { AddRemoveEquipmentDialog } from '@/components/forms/AddRemoveEquipmentDialog';
 
 export const InventoryModule = () => {
-  const [inventory, setInventory] = useState<any[]>([]);
-  const [transactions, setTransactions] = useState(transactionData);
-  const [activeTab, setActiveTab] = useState('inventory');
-  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
-  const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loadingData, setLoadingData] = useState(true);
+  const [equipmentData, setEquipmentData] = useState([]);
+  const [dispatchData, setDispatchData] = useState([]);
+  const [returnsData, setReturnsData] = useState([]);
+  const [stockData, setStockData] = useState([]);
+  const [reportsData, setReportsData] = useState(null);
   const { toast } = useToast();
 
-  const fetchInventory = async () => {
-    try {
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:8000/api/warehouse/stock', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        // Map the API data to the format expected by the component
-        const mappedData = data.map((item: any) => ({
-          id: item.id,
-          itemCode: item.item_code,
-          description: item.description,
-          category: item.category || 'Other',
-          totalQty: item.quantity_total,
-          availableQty: item.quantity_available,
-          rentedQty: item.quantity_rented,
-          damagedQty: item.quantity_maintenance,
-          status: 'available',
-          lastUpdated: new Date().toISOString().split('T')[0]
-        }));
-        setInventory(mappedData);
-      } else {
-        console.error('Failed to fetch inventory');
-        setInventory([]);
-      }
-    } catch (error) {
-      console.error('Error fetching inventory:', error);
-      setInventory([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchInventory();
+    const fetchDashboardData = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/warehouse/dashboard', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setDashboardData(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch warehouse dashboard data:', error);
+      } finally {
+        setLoadingData(false);
+      }
+    };
+
+    const fetchEquipmentData = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/equipment/', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setEquipmentData(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch equipment data:', error);
+      }
+    };
+
+    const fetchDispatchData = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/warehouse/dispatch', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setDispatchData(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch dispatch data:', error);
+      }
+    };
+
+    const fetchReturnsData = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/warehouse/returns', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setReturnsData(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch returns data:', error);
+      }
+    };
+
+    const fetchStockData = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/warehouse/stock', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setStockData(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch stock data:', error);
+      }
+    };
+
+    const fetchReportsData = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/warehouse/reports', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setReportsData(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch reports data:', error);
+      }
+    };
+
+    fetchDashboardData();
+    fetchEquipmentData();
+    fetchDispatchData();
+    fetchReturnsData();
+    fetchStockData();
+    fetchReportsData();
   }, []);
 
-  const getStatusBadgeVariant = (status: string) => {
-    const variants: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
-      available: 'default',
-      rented: 'secondary',
-      maintenance: 'outline',
-      damaged: 'destructive',
+  // Listen for stock data refresh events
+  useEffect(() => {
+    const handleStockDataRefresh = () => {
+      const fetchStockData = async () => {
+        try {
+          const response = await fetch('http://localhost:8000/api/warehouse/stock', {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+            }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setStockData(data);
+          }
+        } catch (error) {
+          console.error('Failed to fetch stock data:', error);
+        }
+      };
+      fetchStockData();
     };
-    return variants[status] || 'outline';
-  };
 
-  const getTransactionTypeIcon = (type: string) => {
-    const icons: Record<string, any> = {
-      dispatch: TrendingDown,
-      return: TrendingUp,
-      damage: AlertTriangle,
-      adjustment: Package,
+    window.addEventListener('stockDataRefresh', handleStockDataRefresh);
+
+    return () => {
+      window.removeEventListener('stockDataRefresh', handleStockDataRefresh);
     };
-    const IconComponent = icons[type] || Package;
-    return <IconComponent className="h-4 w-4" />;
-  };
-
-  const handleApproveTransaction = (transaction: any) => {
-    const updatedTransaction = { ...transaction, approved: true, approvedBy: 'Admin User' };
-    setTransactions(transactions.map(t => t.id === transaction.id ? updatedTransaction : t));
-
-    // Update inventory based on transaction type
-    const inventoryItem = inventory.find(item => item.itemCode === transaction.itemCode);
-    if (inventoryItem) {
-      let updatedItem = { ...inventoryItem };
-      switch (transaction.type) {
-        case 'dispatch':
-          updatedItem.rentedQty += transaction.quantity;
-          updatedItem.availableQty -= transaction.quantity;
-          break;
-        case 'return':
-          updatedItem.rentedQty -= transaction.quantity;
-          updatedItem.availableQty += transaction.quantity;
-          break;
-        case 'damage':
-          updatedItem.damagedQty += transaction.quantity;
-          updatedItem.availableQty -= transaction.quantity;
-          break;
-        case 'adjustment':
-          updatedItem.availableQty += transaction.quantity;
-          break;
-      }
-      updatedItem.lastUpdated = new Date().toISOString().split('T')[0];
-      setInventory(inventory.map(item => item.id === inventoryItem.id ? updatedItem : item));
-    }
-
-    toast({
-      title: 'Transaction Approved',
-      description: `Transaction ${transaction.id} has been approved.`,
-    });
-  };
-
-  const handleRejectTransaction = (transaction: any) => {
-    setTransactions(transactions.filter(t => t.id !== transaction.id));
-    toast({
-      title: 'Transaction Rejected',
-      description: `Transaction ${transaction.id} has been rejected.`,
-    });
-  };
-
-  const getLowStockItems = () => {
-    return inventory.filter(item => item.availableQty < 10 && item.availableQty > 0);
-  };
-
-  const getOutOfStockItems = () => {
-    return inventory.filter(item => item.availableQty === 0);
-  };
+  }, []);
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h3 className="text-lg font-semibold">Inventory & Warehouse Supervision</h3>
-        <p className="text-sm text-muted-foreground">Real-time inventory tracking, transaction approvals, and warehouse management</p>
+    <div className="space-y-6">
+      {/* Tabs Navigation */}
+      <div className="border-b">
+        <nav className="flex space-x-4 pb-2">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+              activeTab === 'overview'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('sales-orders')}
+            className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+              activeTab === 'sales-orders'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Sales Orders
+          </button>
+          <button
+            onClick={() => setActiveTab('dispatch')}
+            className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+              activeTab === 'dispatch'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Dispatch
+          </button>
+          <button
+            onClick={() => setActiveTab('returns')}
+            className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+              activeTab === 'returns'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Returns
+          </button>
+          <button
+            onClick={() => setActiveTab('stock')}
+            className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+              activeTab === 'stock'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Stock
+          </button>
+          <button
+            onClick={() => setActiveTab('reports')}
+            className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+              activeTab === 'reports'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Reports
+          </button>
+        </nav>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-card p-4 rounded-lg border">
-          <div className="flex items-center gap-2">
-            <Package className="h-5 w-5 text-blue-600" />
-            <div>
-              <p className="text-sm font-medium">Total Items</p>
-              <p className="text-2xl font-bold">{inventory.length}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-card p-4 rounded-lg border">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-green-600" />
-            <div>
-              <p className="text-sm font-medium">Low Stock</p>
-              <p className="text-2xl font-bold text-orange-600">{getLowStockItems().length}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-card p-4 rounded-lg border">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-red-600" />
-            <div>
-              <p className="text-sm font-medium">Out of Stock</p>
-              <p className="text-2xl font-bold text-red-600">{getOutOfStockItems().length}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-card p-4 rounded-lg border">
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-green-600" />
-            <div>
-              <p className="text-sm font-medium">Pending Approvals</p>
-              <p className="text-2xl font-bold text-blue-600">{transactions.filter(t => !t.approved).length}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex border-b">
-        <button
-          onClick={() => setActiveTab('inventory')}
-          className={`px-4 py-2 border-b-2 font-medium text-sm ${
-            activeTab === 'inventory'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Inventory Overview
-        </button>
-        <button
-          onClick={() => setActiveTab('transactions')}
-          className={`px-4 py-2 border-b-2 font-medium text-sm ${
-            activeTab === 'transactions'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Transaction Approvals
-        </button>
-      </div>
-
-      {activeTab === 'inventory' && (
+      {activeTab === 'overview' && (
         <div className="space-y-4">
-          <div className="border rounded-lg">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Pending Dispatch
+                </CardTitle>
+                <Truck className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{dashboardData?.pendingDispatch || 0}</div>
+                <p className="text-xs text-muted-foreground mt-1">Orders ready for delivery</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Expected Returns
+                </CardTitle>
+                <Package className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{dashboardData?.expectedReturns || 0}</div>
+                <p className="text-xs text-muted-foreground mt-1">Due this week</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Low Stock Items
+                </CardTitle>
+                <AlertCircle className="h-4 w-4 text-warning" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-warning">{dashboardData?.lowStockItems || 0}</div>
+                <p className="text-xs text-muted-foreground mt-1">Requires attention</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Equipment Status</CardTitle>
+              <CardDescription>Real-time inventory overview</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Item Code</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Available</TableHead>
+                    <TableHead>On Rent</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Utilization</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {equipmentData.length > 0 ? equipmentData.slice(0, 5).map((item) => {
+                    const utilization = Math.round((item.quantity_rented / item.quantity_total) * 100);
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">{item.item_code}</TableCell>
+                        <TableCell>{item.description}</TableCell>
+                        <TableCell className="text-success font-semibold">{item.quantity_available}</TableCell>
+                        <TableCell className="text-primary font-semibold">{item.quantity_rented}</TableCell>
+                        <TableCell>{item.quantity_total}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="w-20 h-2 bg-secondary rounded-full overflow-hidden">
+                              <div className="h-full bg-primary" style={{ width: `${utilization}%` }} />
+                            </div>
+                            <span className="text-sm">{utilization}%</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-4">
+                        No equipment data available
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Pending Dispatch</CardTitle>
+                    <CardDescription>Orders ready for delivery</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>SO ID</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {dispatchData.length > 0 ? dispatchData.slice(0, 5).map((dispatch) => (
+                      <TableRow key={dispatch.id}>
+                        <TableCell className="font-medium">{dispatch.sales_order_id}</TableCell>
+                        <TableCell>{dispatch.customer_name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">${dispatch.total_amount?.toLocaleString()}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => {
+                              setActiveTab('dispatch');
+                              toast({ title: 'View Dispatch', description: `Viewing dispatch details for ${dispatch.sales_order_id}` });
+                            }}
+                          >
+                            View
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-4">
+                          <p className="text-muted-foreground">No pending dispatches</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Dispatches appear here after processing sales orders
+                          </p>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Expected Returns</CardTitle>
+                <CardDescription>Equipment due back this week</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Contract</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Return Date</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {returnsData.length > 0 ? returnsData.map((returns) => (
+                      <TableRow key={returns.id}>
+                        <TableCell className="font-medium">{returns.contract_id}</TableCell>
+                        <TableCell>{returns.customer_id}</TableCell>
+                        <TableCell className="text-sm">{new Date(returns.return_date).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">
+                            {returns.condition || 'pending'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    )) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-4">
+                          No expected returns available
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'sales-orders' && <WarehouseOrdersModule />}
+
+      {activeTab === 'dispatch' && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Delivery Management</CardTitle>
+                <CardDescription>Dispatched sales orders ready for delivery</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>SO ID</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Project</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Dispatch Date</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {dispatchData.length > 0 ? dispatchData.map((dispatch) => (
+                  <TableRow key={dispatch.id}>
+                    <TableCell className="font-medium">{dispatch.sales_order_id}</TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{dispatch.customer_name}</p>
+                        <p className="text-sm text-muted-foreground">{dispatch.company}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>{dispatch.project}</TableCell>
+                    <TableCell className="font-semibold">${dispatch.total_amount?.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Badge variant={dispatch.status === 'delivered' ? 'default' : 'secondary'}>
+                        {dispatch.status?.toUpperCase()}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {dispatch.dispatch_date ? new Date(dispatch.dispatch_date).toLocaleDateString() : 'Pending'}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1 flex-wrap">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toast({ title: 'DO Generated', description: `Delivery Order generated for ${dispatch.sales_order_id}` })}
+                        >
+                          Create DO
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toast({ title: 'Delivery Marked', description: `Order ${dispatch.sales_order_id} marked as delivered` })}
+                        >
+                          Mark Delivered
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toast({ title: 'DO Printed', description: `Delivery Order printed for ${dispatch.sales_order_id}` })}
+                        >
+                          Print DO
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8">
+                      <Truck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">No dispatch orders available</p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Orders will appear here after warehouse clicks "Dispatch" in the Sales Orders tab
+                      </p>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTab === 'returns' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Return Management</CardTitle>
+            <CardDescription>Early Return Notes, Inspection Notes, and Damage Recording</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Contract</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Return Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Items</TableHead>
+                  <TableHead>Missing/Damaged</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {returnsData.length > 0 ? returnsData.map((returns) => (
+                  <TableRow key={returns.id}>
+                    <TableCell className="font-medium">{returns.contract_id}</TableCell>
+                    <TableCell>{returns.customer_id}</TableCell>
+                    <TableCell className="text-sm">{new Date(returns.return_date).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">
+                        {returns.condition || 'pending'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{returns.quantity} items</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">None</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1 flex-wrap">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toast({ title: 'Early Return Note', description: `Early return note created for ${returns.contract_id}` })}
+                        >
+                          Add Return
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toast({ title: 'Inspection Note', description: `Return inspection note created for ${returns.contract_id}` })}
+                        >
+                          Inspect
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toast({ title: 'Damage Recorded', description: `Missing/damaged items recorded for ${returns.contract_id}` })}
+                        >
+                          Record Damage
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => toast({ title: 'Return Approved', description: `Return approved for ${returns.contract_id}` })}
+                        >
+                          Approve Return
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-4">
+                      No return requests available
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTab === 'stock' && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Inventory Control</CardTitle>
+                <CardDescription>Item Master View with real-time stock status</CardDescription>
+              </div>
+              <AddRemoveEquipmentDialog />
+            </div>
+          </CardHeader>
+          <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Item Code</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Total Qty</TableHead>
                   <TableHead>Available</TableHead>
-                  <TableHead>Rented</TableHead>
-                  <TableHead>Damaged</TableHead>
+                  <TableHead>Reserved</TableHead>
+                  <TableHead>Under Maintenance</TableHead>
+                  <TableHead>On Rent</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Utilization</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Last Updated</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">
-                      <div className="flex items-center justify-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Loading inventory...</span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : inventory.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">
-                      <div className="flex flex-col items-center gap-2">
-                        <Package className="h-12 w-12 text-muted-foreground" />
-                        <span className="text-muted-foreground">No inventory items available</span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  inventory.map((item) => (
+                {stockData.length > 0 ? stockData.map((item) => {
+                  const utilization = Math.round((item.quantity_rented / item.quantity_total) * 100);
+                  const status = item.quantity_available < 10 ? 'critical' : item.quantity_available < 50 ? 'low' : 'good';
+                  return (
                     <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.itemCode}</TableCell>
+                      <TableCell className="font-medium">{item.item_code}</TableCell>
                       <TableCell>{item.description}</TableCell>
-                      <TableCell>{item.category}</TableCell>
-                      <TableCell>{item.totalQty}</TableCell>
-                      <TableCell className={item.availableQty < 10 ? 'text-orange-600 font-medium' : ''}>
-                        {item.availableQty}
-                      </TableCell>
-                      <TableCell>{item.rentedQty}</TableCell>
-                      <TableCell className="text-red-600">{item.damagedQty}</TableCell>
+                      <TableCell className="text-success font-semibold">{item.quantity_available}</TableCell>
+                      <TableCell className="text-warning font-semibold">0</TableCell>
+                      <TableCell className="text-muted-foreground font-semibold">{item.quantity_maintenance}</TableCell>
+                      <TableCell className="text-primary font-semibold">{item.quantity_rented}</TableCell>
+                      <TableCell>{item.quantity_total}</TableCell>
                       <TableCell>
-                        <Badge variant={getStatusBadgeVariant(item.status)}>
-                          {item.status}
+                        <div className="flex items-center gap-2">
+                          <div className="w-20 h-2 bg-secondary rounded-full overflow-hidden">
+                            <div className="h-full bg-primary" style={{ width: `${utilization}%` }} />
+                          </div>
+                          <span className="text-sm">{utilization}%</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={status === 'critical' ? 'destructive' : status === 'low' ? 'secondary' : 'default'}>
+                          {status}
                         </Badge>
                       </TableCell>
-                      <TableCell>{item.lastUpdated}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-1 flex-wrap">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => toast({ title: 'View Stock', description: `Viewing stock for ${item.item_code}` })}
+                          >
+                            View Stock
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => toast({ title: 'Update Quantity', description: `Updating quantity for ${item.item_code}` })}
+                          >
+                            Update Quantity
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => toast({ title: 'Add Adjustment', description: `Adding adjustment for ${item.item_code}` })}
+                          >
+                            Add Adjustment
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
-                  ))
+                  );
+                }) : (
+                  <TableRow>
+                    <TableCell colSpan={10} className="text-center py-4">
+                      No stock data available
+                    </TableCell>
+                  </TableRow>
                 )}
               </TableBody>
             </Table>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'transactions' && (
-        <div className="space-y-4">
-          <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Item Code</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Approved By</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {transactions.map((transaction) => (
-                  <TableRow key={transaction.id}>
-                    <TableCell className="font-medium">{transaction.itemCode}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {getTransactionTypeIcon(transaction.type)}
-                        <span className="capitalize">{transaction.type}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className={`font-medium ${
-                      transaction.quantity > 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {transaction.quantity > 0 ? '+' : ''}{transaction.quantity}
-                    </TableCell>
-                    <TableCell className="text-sm">{transaction.reason}</TableCell>
-                    <TableCell>{transaction.date}</TableCell>
-                    <TableCell>
-                      <Badge variant={transaction.approved ? 'default' : 'outline'}>
-                        {transaction.approved ? 'Approved' : 'Pending'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{transaction.approvedBy || '-'}</TableCell>
-                    <TableCell className="text-right">
-                      {!transaction.approved && (
-                        <div className="flex gap-1 justify-end">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Approve Transaction"
-                            onClick={() => handleApproveTransaction(transaction)}
-                          >
-                            <CheckCircle className="h-4 w-4 text-green-600" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Reject Transaction"
-                            onClick={() => handleRejectTransaction(transaction)}
-                          >
-                            <XCircle className="h-4 w-4 text-red-600" />
-                          </Button>
-                        </div>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-      )}
-
-      <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Transaction Details</DialogTitle>
-            <DialogDescription>Review transaction details before approval</DialogDescription>
-          </DialogHeader>
-          {selectedTransaction && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Item Code</Label>
-                  <p className="font-medium">{selectedTransaction.itemCode}</p>
-                </div>
-                <div>
-                  <Label>Type</Label>
-                  <p className="font-medium capitalize">{selectedTransaction.type}</p>
-                </div>
-                <div>
-                  <Label>Quantity</Label>
-                  <p className={`font-medium ${
-                    selectedTransaction.quantity > 0 ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {selectedTransaction.quantity > 0 ? '+' : ''}{selectedTransaction.quantity}
-                  </p>
-                </div>
-                <div>
-                  <Label>Date</Label>
-                  <p className="font-medium">{selectedTransaction.date}</p>
-                </div>
-              </div>
-              <div>
-                <Label>Reason</Label>
-                <p className="text-sm">{selectedTransaction.reason}</p>
-              </div>
-              <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => setApprovalDialogOpen(false)}>
-                  Cancel
+            <div className="mt-4">
+              <h4 className="text-md font-semibold mb-2">Stock Adjustment & Audit</h4>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => toast({ title: 'Adjustment Added', description: 'Stock adjustment added and auto-updated after inspection' })}
+                >
+                  Add Adjustment
                 </Button>
-                <Button onClick={() => {
-                  handleApproveTransaction(selectedTransaction);
-                  setApprovalDialogOpen(false);
-                }}>
-                  Approve Transaction
+                <Button
+                  variant="default"
+                  onClick={() => toast({ title: 'Sent for Review', description: 'Adjustment sent for finance review' })}
+                >
+                  Send for Finance Review
                 </Button>
               </div>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTab === 'reports' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Warehouse Reports</CardTitle>
+            <CardDescription>Stock utilization and damaged/missing item summaries</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Stock Utilization</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{reportsData?.stockUtilization || 0}%</div>
+                  <p className="text-xs text-muted-foreground">Average across all items</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Damaged Items</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-destructive">{reportsData?.damagedItems || 0}</div>
+                  <p className="text-xs text-muted-foreground">Items requiring repair</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Missing Items</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-warning">{reportsData?.missingItems || 0}</div>
+                  <p className="text-xs text-muted-foreground">Items not returned</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold mb-4">Damaged/Missing Item Summary</h3>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Item Code</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Damaged</TableHead>
+                    <TableHead>Missing</TableHead>
+                    <TableHead>Total Loss</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {reportsData?.damagedMissingItems && reportsData.damagedMissingItems.length > 0 ? reportsData.damagedMissingItems.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">{item.item_code}</TableCell>
+                      <TableCell>{item.description}</TableCell>
+                      <TableCell className="text-destructive font-semibold">{item.quantity_damaged || 0}</TableCell>
+                      <TableCell className="text-warning font-semibold">{item.quantity_missing || 0}</TableCell>
+                      <TableCell className="font-semibold">{(item.quantity_damaged || 0) + (item.quantity_missing || 0)}</TableCell>
+                      <TableCell>
+                        <Badge variant="default">
+                          {item.status || 'unknown'}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  )) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-4">
+                        No damaged or missing items
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            <div className="mt-6 flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => toast({ title: 'Report Generated', description: 'Stock utilization report generated' })}
+              >
+                Generate Report
+              </Button>
+              <Button
+                variant="default"
+                onClick={() => toast({ title: 'Report Exported', description: 'Report exported as PDF' })}
+              >
+                Export PDF
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

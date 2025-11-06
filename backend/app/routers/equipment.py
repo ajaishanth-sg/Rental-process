@@ -39,17 +39,18 @@ async def create_equipment(
         )
 
     equipment_dict = equipment_data.dict()
+    # Auto-approve equipment created by warehouse and admin staff so it's immediately available to customers
     equipment_dict.update({
         "quantity_rented": 0,
         "quantity_maintenance": 0,
         "quantity_damaged": 0,
         "status": EquipmentStatus.AVAILABLE,
-        "approval_status": "approved" if current_user["role"] == "admin" else "pending",
+        "approval_status": "approved",  # Auto-approve warehouse and admin created equipment
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
         "created_by": current_user["email"],
-        "approved_by": current_user["email"] if current_user["role"] == "admin" else None,
-        "approved_at": datetime.utcnow() if current_user["role"] == "admin" else None
+        "approved_by": current_user["email"],
+        "approved_at": datetime.utcnow()
     })
 
     result = await db.equipment.insert_one(equipment_dict)
@@ -63,8 +64,8 @@ async def create_equipment(
         "previous_quantity": 0,
         "new_quantity": equipment_data.quantity_total,
         "performed_by": current_user["email"],
-        "approved_by": current_user["email"] if current_user["role"] == "admin" else None,
-        "reason": "Initial equipment creation",
+        "approved_by": current_user["email"],
+        "reason": "Initial equipment creation - auto-approved",
         "timestamp": datetime.utcnow()
     })
 
@@ -87,8 +88,14 @@ async def get_equipment(
         query["category"] = category
     if status:
         query["status"] = status
-    if approval_status:
+    
+    # For customer role, only show approved equipment
+    # Warehouse and admin can see all equipment or use approval_status filter
+    if current_user["role"] == "customer":
+        query["approval_status"] = "approved"
+    elif approval_status:
         query["approval_status"] = approval_status
+    
     if search:
         query["$or"] = [
             {"item_code": {"$regex": search, "$options": "i"}},
@@ -120,6 +127,13 @@ async def get_equipment_by_id(
 
     if not equipment:
         raise HTTPException(status_code=404, detail="Equipment not found")
+    
+    # For customer role, only allow access to approved equipment
+    if current_user["role"] == "customer" and equipment.get("approval_status") != "approved":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This equipment is not available for rental"
+        )
 
     equipment["id"] = str(equipment["_id"])
     del equipment["_id"]

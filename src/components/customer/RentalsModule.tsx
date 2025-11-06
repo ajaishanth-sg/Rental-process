@@ -79,11 +79,32 @@ export const RentalsModule = () => {
     fetchEquipment();
   }, [user]);
 
+  // Get unique categories from equipment data
+  const getAvailableCategories = () => {
+    const categories = Array.from(new Set(equipment.map(eq => eq.category)));
+    return categories;
+  };
+
+  // Category display names mapping
+  const getCategoryDisplayName = (category: string) => {
+    const categoryNames: { [key: string]: string } = {
+      'scaffolding': 'Scaffolding Systems',
+      'formwork': 'Formwork & Shuttering',
+      'shoring': 'Shoring & Support',
+      'safety': 'Safety Equipment',
+      'tools': 'Construction Tools',
+      'machinery': 'Heavy Machinery',
+      'other': 'Other Equipment'
+    };
+    return categoryNames[category.toLowerCase()] || category.charAt(0).toUpperCase() + category.slice(1);
+  };
+
   const fetchEquipment = async () => {
     try {
       setLoadingEquipment(true);
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:8000/api/equipment/?approval_status=approved', {
+      // Backend automatically filters to approved equipment for customer role
+      const response = await fetch('http://localhost:8000/api/equipment/', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -455,13 +476,17 @@ export const RentalsModule = () => {
                             <SelectValue placeholder="Select category" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="scaffolding">Scaffolding Systems</SelectItem>
-                            <SelectItem value="formwork">Formwork & Shuttering</SelectItem>
-                            <SelectItem value="shoring">Shoring & Support</SelectItem>
-                            <SelectItem value="safety">Safety Equipment</SelectItem>
-                            <SelectItem value="tools">Construction Tools</SelectItem>
-                            <SelectItem value="machinery">Heavy Machinery</SelectItem>
-                            <SelectItem value="other">Other Equipment</SelectItem>
+                            {getAvailableCategories().length > 0 ? (
+                              getAvailableCategories().map((category) => (
+                                <SelectItem key={category} value={category}>
+                                  {getCategoryDisplayName(category)}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="no-category" disabled>
+                                {loadingEquipment ? 'Loading categories...' : 'No categories available'}
+                              </SelectItem>
+                            )}
                           </SelectContent>
                         </Select>
                       </div>

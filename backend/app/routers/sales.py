@@ -103,21 +103,42 @@ async def get_sales_enquiries(current_user: dict = Depends(get_current_user)):
         print(f"\n=== SALES ENQUIRIES REQUEST ===")
         print(f"User: {current_user.get('email')} (Role: {current_user.get('role')})")
 
-        # Query enquiries collection and include those unassigned or assigned to the current salesperson
-        enquiries_cursor = db.enquiries.find({})
+        # Query enquiries collection - for admin, show all; for sales, show assigned/unassigned
+        query = {}
+        if current_user.get("role") == "sales":
+            query = {
+                "$or": [
+                    {"assigned_salesperson_id": current_user["id"]},
+                    {"assigned_salesperson_id": None},
+                    {"assigned_salesperson_id": {"$exists": False}},
+                ]
+            }
+        
+        enquiries_cursor = db.enquiries.find(query)
         enquiries_raw = await enquiries_cursor.to_list(length=None)
         enquiries = []
         for enquiry in enquiries_raw:
-            assigned_id = enquiry.get("assigned_salesperson_id")
-            if assigned_id is None or str(assigned_id) == current_user["id"]:
-                enquiry_copy = enquiry.copy()
-                enquiry_copy["id"] = str(enquiry_copy.pop("_id"))
-                enquiries.append(enquiry_copy)
+            enquiry_copy = enquiry.copy()
+            enquiry_copy["id"] = str(enquiry_copy.pop("_id"))
+            # Ensure enquiry_id is set
+            if "enquiry_id" not in enquiry_copy:
+                enquiry_copy["enquiry_id"] = enquiry_copy.get("id", f"ENQ-{enquiry_copy['id'][:8]}")
+            enquiries.append(enquiry_copy)
         
-        print(f"Found {len(enquiries)} regular enquiries")
+        print(f"Found {len(enquiries)} regular enquiries from enquiries collection")
 
-        # Also include all rentals (since assigned_salesperson_id is not set in rental creation)
-        rentals_cursor = db.rentals.find({})
+        # Also include rentals - for admin, show all; for sales, show assigned/unassigned
+        rental_query = {}
+        if current_user.get("role") == "sales":
+            rental_query = {
+                "$or": [
+                    {"assigned_salesperson_id": current_user["id"]},
+                    {"assigned_salesperson_id": None},
+                    {"assigned_salesperson_id": {"$exists": False}},
+                ]
+            }
+        
+        rentals_cursor = db.rentals.find(rental_query)
         rentals_raw = await rentals_cursor.to_list(length=None)
         
         print(f"Found {len(rentals_raw)} rental orders in database")

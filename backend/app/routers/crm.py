@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from typing import List, Optional
 from datetime import datetime, timedelta
 from pydantic import BaseModel, EmailStr
+from bson import ObjectId
 from ..utils.auth import get_current_user
 from ..utils.database import get_database
+import os
 
 router = APIRouter()
 
@@ -17,12 +19,42 @@ class CustomerDocument(BaseModel):
 
 class CustomerCRM(BaseModel):
     name: str
-    contactPerson: str
+    contactPerson: Optional[str] = None
     email: str
-    phone: str
+    phone: Optional[str] = None
     location: Optional[str] = None
+    address: Optional[str] = None
+    streetAddress: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip: Optional[str] = None
+    businessPhone: Optional[str] = None
+    officePhone: Optional[str] = None
+    mobile: Optional[str] = None
+    cellPhone: Optional[str] = None
+    secondaryEmail: Optional[str] = None
+    secondaryPhone: Optional[str] = None
     website: Optional[str] = None
     companyType: Optional[str] = None
+    billingAddress: Optional[str] = None
+    billingCity: Optional[str] = None
+    billingState: Optional[str] = None
+    billingZip: Optional[str] = None
+    shippingAddress: Optional[str] = None
+    shippingCity: Optional[str] = None
+    shippingState: Optional[str] = None
+    shippingZip: Optional[str] = None
+    projectContact: Optional[str] = None
+    contactPhone: Optional[str] = None
+    contactEmail: Optional[str] = None
+    paymentTerms: Optional[str] = None
+    specialTerms: Optional[str] = None
+    preferredBillingMethod: Optional[str] = None
+    preferredPaymentMethod: Optional[str] = None
+    servicesNotes: Optional[str] = None
+    notes: Optional[str] = None
+    comments: Optional[str] = None
+    specialInstructions: Optional[str] = None
     passportNumber: Optional[str] = None
     passportExpiry: Optional[str] = None
     emiratesId: Optional[str] = None
@@ -131,29 +163,130 @@ async def get_crm_customers(current_user: dict = Depends(get_current_user)):
         customers_raw = await customers_cursor.to_list(length=None)
         
         customers = []
+        
+        # First pass: find maximum existing customer number
+        max_customer_num = 0
+        for customer in customers_raw:
+            customer_id = customer.get("customer_id", "")
+            # Check if customer has a properly formatted ID (CUST-#### format)
+            if customer_id and customer_id.startswith("CUST-"):
+                # Extract number part from CUST-#### or CUST-YYYY-####
+                parts = customer_id.split("-")
+                if len(parts) >= 2:
+                    try:
+                        # Handle both CUST-001 and CUST-2025-0001 formats
+                        if len(parts) == 2:
+                            # Simple format CUST-001
+                            num = int(parts[1])
+                            max_customer_num = max(max_customer_num, num)
+                        elif len(parts) == 3 and parts[2].isdigit():
+                            # Year format CUST-2025-0001, use just the sequence number
+                            num = int(parts[2])
+                            max_customer_num = max(max_customer_num, num)
+                    except:
+                        pass
+        
+        # Second pass: generate and normalize IDs for all customers
+        customer_id_map = {}  # Map of mongo_id -> display_id
+        customers_to_update = []  # List of customers that need database updates
+        
+        for customer in customers_raw:
+            mongo_id = customer.get("_id")
+            mongo_id_str = str(mongo_id) if mongo_id else ""
+            display_customer_id = customer.get("customer_id", "")
+            
+            # Check if customer ID needs to be generated or normalized
+            needs_update = False
+            normalized_id = None
+            
+            if not display_customer_id or not display_customer_id.startswith("CUST-") or len(display_customer_id) > 15:
+                # Generate new ID
+                max_customer_num += 1
+                normalized_id = f"CUST-{str(max_customer_num).zfill(4)}"
+                needs_update = True
+            else:
+                # Normalize existing ID to simple format if it's in year format
+                parts = display_customer_id.split("-")
+                if len(parts) == 3 and parts[2].isdigit():
+                    # Convert CUST-2025-0001 to CUST-0001
+                    normalized_id = f"CUST-{parts[2]}"
+                    if normalized_id != display_customer_id:
+                        needs_update = True
+                else:
+                    normalized_id = display_customer_id
+            
+            customer_id_map[mongo_id_str] = normalized_id
+            
+            # Track customers that need database update
+            if needs_update and mongo_id:
+                # Convert to ObjectId if it's a string, otherwise use as-is
+                update_id = ObjectId(mongo_id_str) if isinstance(mongo_id_str, str) and mongo_id_str else mongo_id
+                customers_to_update.append({
+                    "id": update_id,
+                    "customer_id": normalized_id
+                })
+        
+        # Update customers in database that need ID fixes
+        if customers_to_update:
+            for customer_update in customers_to_update:
+                try:
+                    await db.customers.update_one(
+                        {"_id": customer_update["id"]},
+                        {"$set": {"customer_id": customer_update["customer_id"]}}
+                    )
+                except:
+                    pass  # Continue even if update fails
+        
+        # Third pass: build final customer list with proper IDs
         for customer in customers_raw:
             customer_copy = customer.copy()
-            customer_id = str(customer_copy.pop("_id"))
-            customer_copy["id"] = customer_id
+            mongo_id = customer_copy.get("_id")
+            mongo_id_str = str(mongo_id) if mongo_id else ""
+            display_customer_id = customer_id_map.get(mongo_id_str, customer_copy.get("customer_id", ""))
             
-            # Get contract statistics
+            # Ensure we have a valid ID
+            if not display_customer_id or not display_customer_id.startswith("CUST-"):
+                max_customer_num += 1
+                display_customer_id = f"CUST-{str(max_customer_num).zfill(4)}"
+            
+            customer_copy.pop("_id", None)
+            customer_copy["id"] = display_customer_id
+            customer_copy["_id"] = mongo_id_str  # Keep MongoDB ID for internal reference
+            
+            # Get contract statistics - try both MongoDB _id and formatted customer_id
             active_contracts = await db.contracts.count_documents({
-                "customer_id": customer_id,
+                "$or": [
+                    {"customer_id": mongo_id},
+                    {"customer_id": display_customer_id}
+                ],
                 "status": "active"
             })
             
             completed_projects = await db.contracts.count_documents({
-                "customer_id": customer_id,
+                "$or": [
+                    {"customer_id": mongo_id},
+                    {"customer_id": display_customer_id}
+                ],
                 "status": "completed"
             })
             
             # Calculate total value from all contracts
-            contracts_cursor = db.contracts.find({"customer_id": customer_id})
+            contracts_cursor = db.contracts.find({
+                "$or": [
+                    {"customer_id": mongo_id},
+                    {"customer_id": display_customer_id}
+                ]
+            })
             contracts = await contracts_cursor.to_list(length=None)
-            total_value = sum(c.get("totalAmount", 0) for c in contracts)
+            total_value = sum(c.get("totalAmount", 0) or c.get("total_amount", 0) or c.get("amount", 0) for c in contracts)
             
             # Get average satisfaction score from feedback
-            feedback_cursor = db.feedback.find({"customer_id": customer_id})
+            feedback_cursor = db.feedback.find({
+                "$or": [
+                    {"customer_id": mongo_id},
+                    {"customer_id": display_customer_id}
+                ]
+            })
             feedback_list = await feedback_cursor.to_list(length=None)
             avg_satisfaction = 0
             if feedback_list:
@@ -161,23 +294,63 @@ async def get_crm_customers(current_user: dict = Depends(get_current_user)):
             
             # Calculate outstanding amount
             invoices_cursor = db.invoices.find({
-                "customer_id": customer_id,
+                "$or": [
+                    {"customer_id": mongo_id},
+                    {"customer_id": display_customer_id}
+                ],
                 "status": {"$in": ["pending", "overdue"]}
             })
             invoices = await invoices_cursor.to_list(length=None)
-            outstanding_amount = sum(inv.get("totalAmount", 0) for inv in invoices)
+            outstanding_amount = sum(inv.get("totalAmount", 0) or inv.get("total_amount", 0) or inv.get("amount", 0) for inv in invoices)
             
-            # Add computed fields
+            # Get documents - try both MongoDB _id and formatted customer_id
+            documents_cursor = db.customer_documents.find({
+                "$or": [
+                    {"customer_id": mongo_id_str},
+                    {"customer_id": display_customer_id},
+                    {"customer_id_formatted": display_customer_id},
+                    {"customer_id": str(mongo_id)}
+                ]
+            })
+            documents = await documents_cursor.to_list(length=None)
+            
+            # Add computed fields and documents
             customer_copy.update({
                 "activeContracts": active_contracts,
                 "completedProjects": completed_projects,
                 "totalValue": total_value,
                 "satisfactionScore": round(avg_satisfaction, 1) if avg_satisfaction else 5.0,
                 "outstandingAmount": outstanding_amount,
-                "status": "active" if active_contracts > 0 else "inactive"
+                "status": "active" if active_contracts > 0 else "inactive",
+                "documents": [
+                    {
+                        "name": doc.get("name") or doc.get("document_name") or "Unnamed Document",
+                        "type": doc.get("type") or doc.get("document_type") or "N/A",
+                        "status": doc.get("status") or "pending",
+                        "uploadDate": doc.get("uploadDate") or doc.get("upload_date") or doc.get("created_at") or "N/A",
+                        "expiryDate": doc.get("expiryDate") or doc.get("expiry_date") or None
+                    }
+                    for doc in documents
+                ]
             })
             
             customers.append(customer_copy)
+        
+        # Sort customers by ID in ascending order (CUST-0001, CUST-0002, etc.)
+        def extract_customer_number(cust):
+            cust_id = cust.get("id", "")
+            if cust_id.startswith("CUST-"):
+                try:
+                    parts = cust_id.split("-")
+                    if len(parts) >= 2:
+                        # Extract number part
+                        num_str = parts[1] if len(parts) == 2 else parts[-1]
+                        return int(num_str)
+                except:
+                    pass
+            return float('inf')  # Put invalid IDs at the end
+        
+        customers.sort(key=extract_customer_number)
         
         return customers
     
@@ -195,24 +368,70 @@ async def get_customer_details(customer_id: str, current_user: dict = Depends(ge
         
         db = get_database()
         
-        # Find customer
-        customer = await db.customers.find_one({"_id": customer_id})
+        # Find customer by MongoDB _id or customer_id field
+        from bson import ObjectId
+        customer = None
+        
+        # Try to find by MongoDB _id first
+        try:
+            if len(customer_id) == 24:  # MongoDB ObjectId length
+                customer = await db.customers.find_one({"_id": ObjectId(customer_id)})
+        except:
+            pass
+        
+        # If not found by _id, try finding by customer_id field (formatted ID like CUST-0001)
+        if not customer:
+            customer = await db.customers.find_one({"customer_id": customer_id})
+        
+        # If still not found, try as string _id
+        if not customer:
+            customer = await db.customers.find_one({"_id": customer_id})
+        
         if not customer:
             raise HTTPException(status_code=404, detail="Customer not found")
         
         customer_copy = customer.copy()
-        customer_copy["id"] = str(customer_copy.pop("_id"))
+        mongo_id = str(customer_copy.pop("_id"))
         
-        # Get documents
-        documents_cursor = db.customer_documents.find({"customer_id": customer_id})
+        # Get formatted customer_id for display
+        display_customer_id = customer_copy.get("customer_id")
+        if not display_customer_id:
+            # Try to use the passed customer_id if it's formatted
+            if customer_id and customer_id.startswith("CUST-"):
+                display_customer_id = customer_id
+            else:
+                # Fallback to MongoDB ID
+                display_customer_id = mongo_id
+        
+        customer_copy["id"] = display_customer_id
+        customer_copy["_id"] = mongo_id
+        
+        # Ensure all numeric fields have defaults
+        customer_copy["totalValue"] = customer_copy.get("totalValue") or 0
+        customer_copy["activeContracts"] = customer_copy.get("activeContracts") or 0
+        customer_copy["completedProjects"] = customer_copy.get("completedProjects") or 0
+        customer_copy["satisfactionScore"] = customer_copy.get("satisfactionScore") or 5.0
+        customer_copy["outstandingAmount"] = customer_copy.get("outstandingAmount") or 0
+        customer_copy["creditLimit"] = customer_copy.get("creditLimit") or customer_copy.get("credit_limit") or 0
+        
+        # Get documents - try both MongoDB _id and formatted customer_id
+        documents_cursor = db.customer_documents.find({
+            "$or": [
+                {"customer_id": mongo_id},
+                {"customer_id": display_customer_id},
+                {"customer_id": customer_id},
+                {"customer_id_formatted": display_customer_id},
+                {"customer_id": str(mongo_id)}
+            ]
+        })
         documents = await documents_cursor.to_list(length=None)
         customer_copy["documents"] = [
             {
-                "name": doc.get("name"),
-                "type": doc.get("type"),
-                "status": doc.get("status"),
-                "uploadDate": doc.get("uploadDate"),
-                "expiryDate": doc.get("expiryDate")
+                "name": doc.get("name") or doc.get("document_name") or "Unnamed Document",
+                "type": doc.get("type") or doc.get("document_type") or "N/A",
+                "status": doc.get("status") or "pending",
+                "uploadDate": doc.get("uploadDate") or doc.get("upload_date") or doc.get("created_at") or "N/A",
+                "expiryDate": doc.get("expiryDate") or doc.get("expiry_date") or None
             }
             for doc in documents
         ]
@@ -340,50 +559,96 @@ async def get_expiring_documents(current_user: dict = Depends(get_current_user))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching expiring documents: {str(e)}")
 
-@router.post("/documents/upload")
+@router.post("/customers/documents/upload")
 async def upload_customer_document(
-    document_data: DocumentUpload,
+    file: UploadFile = File(...),
+    customer_id: str = Form(...),
+    document_type: str = Form(...),
+    expiry_date: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
     current_user: dict = Depends(get_current_user)
 ):
-    """Upload or update a customer document"""
+    """Upload a customer document with file"""
     try:
         if current_user.get("role") != "admin":
             raise HTTPException(status_code=403, detail="Only admin can upload documents")
         
         db = get_database()
         
-        # Verify customer exists
-        customer = await db.customers.find_one({"_id": document_data.customerId})
+        # Find customer by MongoDB _id or customer_id field
+        customer = None
+        
+        # Try to find by MongoDB _id first
+        try:
+            if len(customer_id) == 24:  # MongoDB ObjectId length
+                customer = await db.customers.find_one({"_id": ObjectId(customer_id)})
+        except:
+            pass
+        
+        # If not found by _id, try finding by customer_id field (formatted ID like CUST-0001)
+        if not customer:
+            customer = await db.customers.find_one({"customer_id": customer_id})
+        
+        # If still not found, try as string _id
+        if not customer:
+            customer = await db.customers.find_one({"_id": customer_id})
+        
         if not customer:
             raise HTTPException(status_code=404, detail="Customer not found")
         
-        # Check if document already exists
-        existing_doc = await db.customer_documents.find_one({
-            "customer_id": document_data.customerId,
-            "type": document_data.documentType
-        })
+        # Get customer's MongoDB _id and formatted customer_id
+        mongo_id = str(customer.get("_id"))
+        display_customer_id = customer.get("customer_id", mongo_id)
         
+        # Read file content
+        file_content = await file.read()
+        file_size = len(file_content)
+        
+        # Save file (you can save to file system or store in database)
+        # For now, we'll store file metadata and you can implement file storage separately
+        uploads_dir = "uploads/customer_documents"
+        os.makedirs(uploads_dir, exist_ok=True)
+        
+        # Generate unique filename
+        file_extension = os.path.splitext(file.filename)[1] if file.filename else ".pdf"
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        unique_filename = f"{customer_id}_{document_type}_{timestamp}{file_extension}"
+        file_path = os.path.join(uploads_dir, unique_filename)
+        
+        # Save file to disk
+        with open(file_path, "wb") as f:
+            f.write(file_content)
+        
+        # Create document record
         document = {
-            "customer_id": document_data.customerId,
-            "name": document_data.documentName,
-            "type": document_data.documentType,
+            "customer_id": mongo_id,  # Store MongoDB ID for querying
+            "customer_id_formatted": display_customer_id,  # Store formatted ID for reference
+            "name": file.filename or f"{document_type}_{timestamp}",
+            "document_name": file.filename or f"{document_type}_{timestamp}",
+            "type": document_type,
+            "document_type": document_type,
             "status": "pending",
             "uploadDate": datetime.now().isoformat(),
-            "expiryDate": document_data.expiryDate,
-            "uploadedBy": current_user["id"]
+            "upload_date": datetime.now().isoformat(),
+            "created_at": datetime.now().isoformat(),
+            "expiryDate": expiry_date or None,
+            "expiry_date": expiry_date or None,
+            "description": description or None,
+            "file_path": file_path,
+            "file_size": file_size,
+            "file_name": file.filename or unique_filename,
+            "uploadedBy": current_user["id"],
+            "uploaded_by": current_user["id"]
         }
         
-        if existing_doc:
-            # Update existing document
-            await db.customer_documents.update_one(
-                {"_id": existing_doc["_id"]},
-                {"$set": document}
-            )
-            return {"message": "Document updated successfully"}
-        else:
-            # Insert new document
-            await db.customer_documents.insert_one(document)
-            return {"message": "Document uploaded successfully"}
+        # Insert new document (allow multiple documents of same type)
+        result = await db.customer_documents.insert_one(document)
+        
+        return {
+            "message": "Document uploaded successfully",
+            "document_id": str(result.inserted_id),
+            "file_path": file_path
+        }
     
     except HTTPException:
         raise
@@ -579,23 +844,113 @@ async def update_customer_crm(
         
         db = get_database()
         
-        update_data = customer_data.dict(exclude_unset=True)
+        # Get all fields from the request, including None values (but exclude unset optional fields)
+        # Use dict() without exclude_unset to get all provided fields, then filter out None/empty
+        raw_data = customer_data.dict()
+        
+        # Build update_data with only non-None values, but allow empty strings
+        update_data = {}
+        for key, value in raw_data.items():
+            if value is not None:  # Include empty strings and zero values
+                update_data[key] = value
+        
+        # Always set these metadata fields
         update_data["updated_at"] = datetime.now().isoformat()
         update_data["updated_by"] = current_user["id"]
         
+        # Try to find customer by MongoDB _id first (ObjectId)
+        customer = None
+        mongo_id = None
+        
+        # Check if customer_id is a valid MongoDB ObjectId (24 hex characters)
+        if len(customer_id) == 24:
+            try:
+                # Try to use as ObjectId
+                mongo_id = ObjectId(customer_id)
+                customer = await db.customers.find_one({"_id": mongo_id})
+            except Exception as e:
+                # If ObjectId conversion fails, try other methods
+                print(f"ObjectId conversion failed: {e}")
+                pass
+        
+        # If not found by _id, try to find by customer_id field (formatted ID like CUST-0001)
+        if not customer:
+            customer = await db.customers.find_one({"customer_id": customer_id})
+            if customer:
+                mongo_id = customer.get("_id")
+        
+        # If still not found, try _id as string (in case it's already a string ObjectId)
+        if not customer:
+            try:
+                customer = await db.customers.find_one({"_id": customer_id})
+                if customer:
+                    mongo_id = customer.get("_id")
+            except:
+                pass
+        
+        if not customer:
+            raise HTTPException(status_code=404, detail=f"Customer not found with ID: {customer_id}")
+        
+        # Ensure we have mongo_id
+        if not mongo_id:
+            mongo_id = customer.get("_id")
+        
+        if not mongo_id:
+            raise HTTPException(status_code=404, detail="Customer MongoDB ID not found")
+        
+        # Convert mongo_id to ObjectId if it's a string
+        if isinstance(mongo_id, str):
+            try:
+                mongo_id = ObjectId(mongo_id)
+            except:
+                pass
+        
+        # Check if there are actual changes by comparing with existing customer data
+        has_changes = False
+        for key, new_value in update_data.items():
+            if key in ["updated_at", "updated_by"]:
+                has_changes = True
+                break
+            existing_value = customer.get(key)
+            # Convert both to strings for comparison to handle type differences
+            if str(existing_value or "") != str(new_value or ""):
+                has_changes = True
+                break
+        
+        if not has_changes:
+            # Still update to refresh updated_at timestamp
+            update_data_minimal = {
+                "updated_at": datetime.now().isoformat(),
+                "updated_by": current_user["id"]
+            }
+            result = await db.customers.update_one(
+                {"_id": mongo_id},
+                {"$set": update_data_minimal}
+            )
+            if result.modified_count == 0:
+                raise HTTPException(status_code=400, detail="No changes detected in the update data")
+            return {"message": "Customer updated successfully (timestamp refreshed)"}
+        
+        # Perform the update
         result = await db.customers.update_one(
-            {"_id": customer_id},
+            {"_id": mongo_id},
             {"$set": update_data}
         )
         
-        if result.modified_count == 0:
-            raise HTTPException(status_code=404, detail="Customer not found or no changes made")
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail=f"Customer not found with MongoDB ID: {mongo_id}")
         
-        return {"message": "Customer updated successfully"}
+        if result.modified_count == 0:
+            # Customer was found but no changes were made (values were the same)
+            return {"message": "Customer found but no changes detected. All values are the same."}
+        
+        return {"message": "Customer updated successfully", "modified_count": result.modified_count}
     
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error updating customer: {str(e)}")
 
 # ============= LEADS MANAGEMENT =============
@@ -613,9 +968,92 @@ async def get_leads(current_user: dict = Depends(get_current_user)):
         leads_raw = await leads_cursor.to_list(length=None)
         
         leads = []
+        current_year = datetime.now().year
+        
+        # First pass: determine year sequences from existing leads
+        year_sequences = {}
+        for lead in leads_raw:
+            lead_id = lead.get("lead_id", "")
+            # Check if lead has a properly formatted ID (LEAD-YYYY-#### format)
+            if lead_id and lead_id.startswith("LEAD-") and len(lead_id) <= 15:
+                # Extract year if in format LEAD-YYYY-####
+                parts = lead_id.split("-")
+                if len(parts) == 3 and parts[1].isdigit():
+                    year = int(parts[1])
+                    if year not in year_sequences:
+                        year_sequences[year] = 0
+                    try:
+                        seq_num = int(parts[2])
+                        year_sequences[year] = max(year_sequences[year], seq_num)
+                    except:
+                        pass
+        
+        # Second pass: generate IDs for leads without proper IDs
+        lead_id_map = {}
+        
+        for lead in leads_raw:
+            mongo_id = str(lead.get("_id", ""))
+            display_lead_id = lead.get("lead_id", "")
+            
+            # Check if lead ID needs to be generated
+            needs_id = (not display_lead_id or 
+                       len(display_lead_id) > 15 or 
+                       not display_lead_id.startswith("LEAD-"))
+            
+            if needs_id:
+                # Get creation year
+                created_at = lead.get("createdAt") or lead.get("created_at") or ""
+                year = current_year
+                try:
+                    if created_at:
+                        if isinstance(created_at, str) and len(created_at) >= 4:
+                            year = int(created_at[:4])
+                        elif hasattr(created_at, 'year'):
+                            year = created_at.year
+                except:
+                    pass
+                
+                # Initialize sequence for year if needed
+                if year not in year_sequences:
+                    year_sequences[year] = 0
+                
+                # Get next sequence number for this year
+                year_sequences[year] += 1
+                display_lead_id = f"LEAD-{year}-{str(year_sequences[year]).zfill(4)}"
+                lead_id_map[mongo_id] = display_lead_id
+        
+        # Third pass: build final lead list with proper IDs
         for lead in leads_raw:
             lead_copy = lead.copy()
-            lead_copy["id"] = str(lead_copy.pop("_id"))
+            mongo_id = str(lead_copy.pop("_id"))
+            display_lead_id = lead_copy.get("lead_id", "")
+            
+            # Use generated ID if lead didn't have one
+            if mongo_id in lead_id_map:
+                display_lead_id = lead_id_map[mongo_id]
+            # Or ensure existing ID is properly formatted
+            elif not display_lead_id or len(display_lead_id) > 15 or not display_lead_id.startswith("LEAD-"):
+                # Fallback: generate ID based on current year
+                year = current_year
+                created_at = lead_copy.get("createdAt") or lead_copy.get("created_at") or ""
+                try:
+                    if created_at:
+                        if isinstance(created_at, str) and len(created_at) >= 4:
+                            year = int(created_at[:4])
+                        elif hasattr(created_at, 'year'):
+                            year = created_at.year
+                except:
+                    pass
+                
+                if year not in year_sequences:
+                    year_sequences[year] = 0
+                year_sequences[year] += 1
+                display_lead_id = f"LEAD-{year}-{str(year_sequences[year]).zfill(4)}"
+            
+            # Use lead_id as the display ID, keep MongoDB _id for internal reference
+            lead_copy["id"] = display_lead_id
+            lead_copy["_id"] = mongo_id
+            lead_copy["lead_id"] = display_lead_id
             
             # Get activities count
             activities_count = len(lead_copy.get("activities", []))
@@ -644,7 +1082,28 @@ async def get_lead(lead_id: str, current_user: dict = Depends(get_current_user))
             raise HTTPException(status_code=404, detail="Lead not found")
         
         lead_copy = lead.copy()
-        lead_copy["id"] = str(lead_copy.pop("_id"))
+        mongo_id = str(lead_copy.pop("_id"))
+        display_lead_id = lead_copy.get("lead_id", lead_id)
+        
+        # Ensure lead_id is properly formatted
+        if not display_lead_id or len(display_lead_id) > 15 or not display_lead_id.startswith("LEAD-"):
+            current_year = datetime.now().year
+            created_at = lead_copy.get("createdAt") or lead_copy.get("created_at") or ""
+            year = current_year
+            try:
+                if created_at:
+                    if isinstance(created_at, str) and len(created_at) >= 4:
+                        year = int(created_at[:4])
+                    elif hasattr(created_at, 'year'):
+                        year = created_at.year
+            except:
+                pass
+            # Generate a formatted ID
+            display_lead_id = f"LEAD-{year}-0001"  # Fallback format
+        
+        lead_copy["id"] = display_lead_id
+        lead_copy["_id"] = mongo_id
+        lead_copy["lead_id"] = display_lead_id
         
         return lead_copy
     
@@ -662,9 +1121,25 @@ async def create_lead(lead_data: Lead, current_user: dict = Depends(get_current_
         
         db = get_database()
         
-        # Generate lead ID
-        lead_count = await db.leads.count_documents({})
-        lead_id = f"LEAD-{str(lead_count + 1).zfill(3)}"
+        # Generate lead ID with year-based format
+        current_year = datetime.now().year
+        # Get the maximum sequence number for this year
+        year_leads = await db.leads.find({
+            "lead_id": {"$regex": f"^LEAD-{current_year}-"}
+        }).to_list(length=None)
+        
+        max_seq = 0
+        for lead in year_leads:
+            lead_id_val = lead.get("lead_id", "")
+            if lead_id_val.startswith(f"LEAD-{current_year}-"):
+                try:
+                    parts = lead_id_val.split("-")
+                    if len(parts) == 3 and parts[2].isdigit():
+                        max_seq = max(max_seq, int(parts[2]))
+                except:
+                    pass
+        
+        lead_id = f"LEAD-{current_year}-{str(max_seq + 1).zfill(4)}"
         
         lead = {
             "lead_id": lead_id,
@@ -709,11 +1184,30 @@ async def create_public_lead(lead_data: PublicLeadSubmission):
         assigned_salesperson_id = str(assigned_salesperson["_id"]) if assigned_salesperson else None
         assigned_salesperson_name = assigned_salesperson.get("full_name") if assigned_salesperson else None
 
-        # Create or reuse lead entry for CRM follow-up
-        lead_count = await db.leads.count_documents({})
-        lead_id = f"LEAD-{str(lead_count + 1).zfill(3)}"
+        # Create or reuse lead entry for CRM follow-up with year-based format
+        current_year = now.year
+        year_leads = await db.leads.find({
+            "lead_id": {"$regex": f"^LEAD-{current_year}-"}
+        }).to_list(length=None)
+        
+        max_seq = 0
+        for lead in year_leads:
+            lead_id_val = lead.get("lead_id", "")
+            if lead_id_val.startswith(f"LEAD-{current_year}-"):
+                try:
+                    parts = lead_id_val.split("-")
+                    if len(parts) == 3 and parts[2].isdigit():
+                        max_seq = max(max_seq, int(parts[2]))
+                except:
+                    pass
+        
+        lead_id = f"LEAD-{current_year}-{str(max_seq + 1).zfill(4)}"
 
         full_name = f"{lead_data.firstName} {lead_data.lastName}".strip()
+
+        # Generate enquiry_id first so we can link it to the lead
+        enquiry_count = await db.enquiries.count_documents({}) if hasattr(db, "enquiries") else 0
+        enquiry_id = f"ENQ-{now.year}-{str(enquiry_count + 1).zfill(4)}"
 
         lead_doc = {
             "lead_id": lead_id,
@@ -732,10 +1226,11 @@ async def create_public_lead(lead_data: PublicLeadSubmission):
             "createdAt": now.isoformat(),
             "createdBy": "public",
             "updatedAt": now.isoformat(),
+            "enquiry_id": enquiry_id,  # Link to the enquiry
             "activities": [
                 {
                     "type": "created",
-                    "description": "Lead captured via website enquiry form",
+                    "description": f"Lead captured via website enquiry form (Enquiry: {enquiry_id})",
                     "by": "Website",
                     "timestamp": now.isoformat()
                 }
@@ -744,10 +1239,7 @@ async def create_public_lead(lead_data: PublicLeadSubmission):
         }
 
         await db.leads.insert_one(lead_doc)
-
-        # Also capture enquiry record so downstream dashboards include the submission
-        enquiry_count = await db.enquiries.count_documents({}) if hasattr(db, "enquiries") else 0
-        enquiry_id = f"ENQ-{now.year}-{str(enquiry_count + 1).zfill(3)}"
+        print(f"Created lead {lead_id} from public enquiry form")
 
         expected_start = lead_data.desiredStartDate or now.date().isoformat()
         quantity = max(1, int(lead_data.quantity or 1))
@@ -759,12 +1251,12 @@ async def create_public_lead(lead_data: PublicLeadSubmission):
             "customer_email": lead_data.email,
             "equipment_name": " - ".join(
                 [value for value in [lead_data.equipmentCategory, lead_data.equipmentType] if value]
-            ),
+            ) or lead_data.equipmentCategory or "Equipment enquiry",
             "quantity": quantity,
             "rental_duration_days": 30,
             "delivery_location": lead_data.location or "Not specified",
             "expected_delivery_date": expected_start,
-            "special_instructions": lead_data.message,
+            "special_instructions": lead_data.message or "",
             "status": "submitted_by_customer",
             "created_at": now.isoformat(),
             "updated_at": now.isoformat(),
@@ -772,10 +1264,12 @@ async def create_public_lead(lead_data: PublicLeadSubmission):
             "assigned_salesperson_id": assigned_salesperson_id,
             "assigned_salesperson_name": assigned_salesperson_name,
             "project_type": None,
+            "lead_id": lead_id,  # Link back to the lead
         }
 
-        if hasattr(db, "enquiries"):
-            await db.enquiries.insert_one(enquiry_doc)
+        # Always insert enquiry - the collection exists as it's part of the database schema
+        await db.enquiries.insert_one(enquiry_doc)
+        print(f"Created enquiry {enquiry_id} from public form (linked to lead {lead_id})")
 
         return {
             "message": "Thank you! Your enquiry has been received.",
@@ -807,18 +1301,113 @@ async def get_assigned_leads(current_user: dict = Depends(get_current_user)):
                 ]
             }
 
-        leads_cursor = db.leads.find(query).sort("createdAt", -1)
+        # Sort by createdAt (descending) or created_at, with fallback
+        try:
+            leads_cursor = db.leads.find(query).sort("createdAt", -1)
+        except:
+            # Fallback if createdAt field doesn't exist
+            leads_cursor = db.leads.find(query).sort("created_at", -1)
+        
+        leads_raw = await leads_cursor.to_list(length=None)
+        
+        print(f"Found {len(leads_raw)} raw leads from database")
+        
         leads = []
-        async for lead in leads_cursor:
+        current_year = datetime.now().year
+        
+        # First pass: determine year sequences from existing leads
+        year_sequences = {}
+        for lead in leads_raw:
+            lead_id = lead.get("lead_id", "")
+            if lead_id and lead_id.startswith("LEAD-") and len(lead_id) <= 15:
+                parts = lead_id.split("-")
+                if len(parts) == 3 and parts[1].isdigit():
+                    year = int(parts[1])
+                    if year not in year_sequences:
+                        year_sequences[year] = 0
+                    try:
+                        seq_num = int(parts[2])
+                        year_sequences[year] = max(year_sequences[year], seq_num)
+                    except:
+                        pass
+        
+        # Second pass: generate IDs for leads without proper IDs
+        lead_id_map = {}
+        for lead in leads_raw:
+            mongo_id = str(lead.get("_id", ""))
+            display_lead_id = lead.get("lead_id", "")
+            
+            needs_id = (not display_lead_id or 
+                       len(display_lead_id) > 15 or 
+                       not display_lead_id.startswith("LEAD-"))
+            
+            if needs_id:
+                created_at = lead.get("createdAt") or lead.get("created_at") or ""
+                year = current_year
+                try:
+                    if created_at:
+                        if isinstance(created_at, str) and len(created_at) >= 4:
+                            year = int(created_at[:4])
+                        elif hasattr(created_at, 'year'):
+                            year = created_at.year
+                except:
+                    pass
+                
+                if year not in year_sequences:
+                    year_sequences[year] = 0
+                
+                year_sequences[year] += 1
+                display_lead_id = f"LEAD-{year}-{str(year_sequences[year]).zfill(4)}"
+                lead_id_map[mongo_id] = display_lead_id
+        
+        # Third pass: build final lead list with proper IDs
+        for lead in leads_raw:
             lead_copy = lead.copy()
-            lead_copy["id"] = str(lead_copy.pop("_id", ""))
+            mongo_id = str(lead_copy.pop("_id"))
+            display_lead_id = lead_copy.get("lead_id", "")
+            
+            if mongo_id in lead_id_map:
+                display_lead_id = lead_id_map[mongo_id]
+            elif not display_lead_id or len(display_lead_id) > 15 or not display_lead_id.startswith("LEAD-"):
+                year = current_year
+                created_at = lead_copy.get("createdAt") or lead_copy.get("created_at") or ""
+                try:
+                    if created_at:
+                        if isinstance(created_at, str) and len(created_at) >= 4:
+                            year = int(created_at[:4])
+                        elif hasattr(created_at, 'year'):
+                            year = created_at.year
+                except:
+                    pass
+                
+                if year not in year_sequences:
+                    year_sequences[year] = 0
+                year_sequences[year] += 1
+                display_lead_id = f"LEAD-{year}-{str(year_sequences[year]).zfill(4)}"
+            
+            lead_copy["id"] = display_lead_id
+            lead_copy["_id"] = mongo_id
+            lead_copy["lead_id"] = display_lead_id
+            
+            # Ensure all required fields have default values
+            if "createdAt" not in lead_copy:
+                lead_copy["createdAt"] = lead_copy.get("created_at", datetime.now().isoformat())
+            if "updatedAt" not in lead_copy:
+                lead_copy["updatedAt"] = lead_copy.get("updated_at", lead_copy.get("createdAt"))
+            if "status" not in lead_copy:
+                lead_copy["status"] = "New"
+            
             leads.append(lead_copy)
 
-        return leads
+        # Always return an array, even if empty
+        return leads if leads else []
 
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        print(f"Error in get_assigned_leads: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error fetching assigned leads: {str(e)}")
 
 
@@ -831,9 +1420,24 @@ async def update_lead_status(lead_id: str, status_update: LeadStatusUpdate, curr
 
         db = get_database()
 
+        # Try to find lead by lead_id first
         lead = await db.leads.find_one({"lead_id": lead_id})
+        
+        # If not found, try to find by MongoDB _id (in case lead_id is the MongoDB ID)
         if not lead:
-            raise HTTPException(status_code=404, detail="Lead not found")
+            try:
+                from bson import ObjectId
+                if len(lead_id) == 24:  # MongoDB ObjectId length
+                    lead = await db.leads.find_one({"_id": ObjectId(lead_id)})
+            except:
+                pass
+        
+        # If still not found, try finding by id field
+        if not lead:
+            lead = await db.leads.find_one({"id": lead_id})
+        
+        if not lead:
+            raise HTTPException(status_code=404, detail=f"Lead not found with ID: {lead_id}. Please refresh the page and try again.")
 
         updates = {
             "status": status_update.status,

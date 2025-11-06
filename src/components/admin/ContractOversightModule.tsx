@@ -50,6 +50,8 @@ interface Contract {
   stock_checked: boolean;
   stock_available: boolean;
   created_at: string;
+  start_date?: string;
+  end_date?: string;
 }
 
 export const ContractOversightModule = () => {
@@ -342,29 +344,117 @@ export const ContractOversightModule = () => {
                                   View
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent className="max-w-2xl">
-                                <DialogHeader>
-                                  <DialogTitle>Quotation Details - {quotation.quotation_id}</DialogTitle>
-                                  <DialogDescription>Review quotation details</DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <label className="text-sm font-medium">Customer</label>
-                                      <p className="text-sm text-muted-foreground">{quotation.customerName}</p>
+                              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                                {/* Professional Quotation Header */}
+                                <div className="border-b-2 border-primary pb-4 mb-6">
+                                  <div className="flex items-start justify-between">
+                                    {/* Company Logo and Details */}
+                                    <div className="flex items-start gap-4">
+                                      <div className="w-20 h-20 bg-primary/10 rounded-lg flex items-center justify-center border-2 border-primary/20">
+                                        <FileText className="h-10 w-10 text-primary" />
+                                      </div>
+                                      <div>
+                                        <h2 className="text-2xl font-bold text-primary mb-1">QUOTATION</h2>
+                                        <p className="text-sm text-muted-foreground font-medium">Equipment Rental Services</p>
+                                        <div className="mt-2 text-xs text-muted-foreground">
+                                          <p>123 Business Street, Dubai, UAE</p>
+                                          <p>Tel: +971 4 XXX XXXX | Email: info@company.ae</p>
+                                          <p>Website: www.company.ae</p>
+                                        </div>
+                                      </div>
                                     </div>
-                                    <div>
-                                      <label className="text-sm font-medium">Company</label>
-                                      <p className="text-sm text-muted-foreground">{quotation.company}</p>
+                                    
+                                    {/* Quotation Info */}
+                                    <div className="text-right">
+                                      <div className="bg-primary/5 px-4 py-2 rounded-lg border border-primary/20">
+                                        <p className="text-xs text-muted-foreground mb-1">Quotation Number</p>
+                                        <p className="text-lg font-bold text-primary">{quotation.quotation_id}</p>
+                                      </div>
+                                      <div className="mt-3 text-xs text-muted-foreground">
+                                        <p><span className="font-medium">Date:</span> {quotation.createdDate || new Date().toLocaleDateString()}</p>
+                                        <p><span className="font-medium">Valid Until:</span> {quotation.validUntil || 'N/A'}</p>
+                                      </div>
                                     </div>
-                                    <div>
-                                      <label className="text-sm font-medium">Project</label>
-                                      <p className="text-sm text-muted-foreground">{quotation.project}</p>
+                                  </div>
+                                </div>
+
+                                {/* Quotation Body */}
+                                <div className="space-y-6">
+                                  {/* Customer Information Section */}
+                                  <div className="border rounded-lg p-4 bg-muted/30">
+                                    <h3 className="text-sm font-bold text-primary mb-3 uppercase tracking-wide">Bill To:</h3>
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <p className="text-sm font-semibold text-foreground mb-1">{quotation.customerName || 'N/A'}</p>
+                                        <p className="text-xs text-muted-foreground">{quotation.company || 'N/A'}</p>
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">
+                                        <p className="mb-1"><span className="font-medium">Status:</span> {getStatusBadge(quotation.status)}</p>
+                                      </div>
                                     </div>
-                                    <div>
-                                      <label className="text-sm font-medium">Total Amount</label>
-                                      <p className="text-lg font-semibold">${quotation.totalAmount.toLocaleString()}</p>
+                                  </div>
+
+                                  {/* Project Details Section */}
+                                  <div className="border rounded-lg p-4">
+                                    <h3 className="text-sm font-bold text-primary mb-3 uppercase tracking-wide">Project Details</h3>
+                                    <div className="space-y-2">
+                                      <div className="flex justify-between items-start py-2 border-b">
+                                        <span className="text-sm font-medium text-muted-foreground">Project Name:</span>
+                                        <span className="text-sm font-semibold text-right">{quotation.project || 'N/A'}</span>
+                                      </div>
+                                      {quotation.enquiry_id && (
+                                        <div className="flex justify-between items-start py-2 border-b">
+                                          <span className="text-sm font-medium text-muted-foreground">Enquiry Reference:</span>
+                                          <span className="text-sm font-semibold text-right">{quotation.enquiry_id}</span>
+                                        </div>
+                                      )}
+                                      {quotation.rental_id && (
+                                        <div className="flex justify-between items-start py-2 border-b">
+                                          <span className="text-sm font-medium text-muted-foreground">Rental ID:</span>
+                                          <span className="text-sm font-semibold text-right">{quotation.rental_id}</span>
+                                        </div>
+                                      )}
                                     </div>
+                                  </div>
+
+                                  {/* Financial Summary */}
+                                  <div className="border-2 border-primary rounded-lg p-6 bg-primary/5">
+                                    <div className="flex justify-between items-center">
+                                      <div>
+                                        <p className="text-sm text-muted-foreground mb-1">Total Quotation Amount</p>
+                                        <p className="text-3xl font-bold text-primary">${quotation.totalAmount.toLocaleString()}</p>
+                                      </div>
+                                      <div className="text-right">
+                                        <Badge variant={quotation.status === 'sent' ? 'default' : 'secondary'} className="text-sm px-3 py-1">
+                                          {quotation.status}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Additional Information */}
+                                  <div className="border rounded-lg p-4 bg-muted/20">
+                                    <h3 className="text-sm font-bold text-primary mb-3 uppercase tracking-wide">Additional Information</h3>
+                                    <div className="grid grid-cols-2 gap-4 text-xs">
+                                      <div>
+                                        <p className="font-medium text-muted-foreground mb-1">Quotation Status</p>
+                                        <p className="text-sm">{quotation.status}</p>
+                                      </div>
+                                      <div>
+                                        <p className="font-medium text-muted-foreground mb-1">Created Date</p>
+                                        <p className="text-sm">{quotation.createdDate || new Date().toLocaleDateString()}</p>
+                                      </div>
+                                      <div>
+                                        <p className="font-medium text-muted-foreground mb-1">Valid Until</p>
+                                        <p className="text-sm">{quotation.validUntil || 'N/A'}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Footer Note */}
+                                  <div className="text-xs text-muted-foreground text-center border-t pt-4 mt-6">
+                                    <p className="font-medium mb-2">Thank you for your business!</p>
+                                    <p>This quotation is valid until the date specified above. Please contact us for any questions or clarifications.</p>
                                   </div>
                                 </div>
                               </DialogContent>
@@ -456,37 +546,165 @@ export const ContractOversightModule = () => {
                                   View
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent className="max-w-2xl">
-                                <DialogHeader>
-                                  <DialogTitle>Contract Details - {contract.contract_id}</DialogTitle>
-                                  <DialogDescription>Review contract details</DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <label className="text-sm font-medium">Contract ID</label>
-                                      <p className="text-sm text-muted-foreground">{contract.contract_id}</p>
+                              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                                {/* Professional Contract Header */}
+                                <div className="border-b-2 border-primary pb-4 mb-6">
+                                  <div className="flex items-start justify-between">
+                                    {/* Company Logo and Details */}
+                                    <div className="flex items-start gap-4">
+                                      <div className="w-20 h-20 bg-primary/10 rounded-lg flex items-center justify-center border-2 border-primary/20">
+                                        <FileText className="h-10 w-10 text-primary" />
+                                      </div>
+                                      <div>
+                                        <h2 className="text-2xl font-bold text-primary mb-1">CONTRACT</h2>
+                                        <p className="text-sm text-muted-foreground font-medium">Equipment Rental Agreement</p>
+                                        <div className="mt-2 text-xs text-muted-foreground">
+                                          <p>123 Business Street, Dubai, UAE</p>
+                                          <p>Tel: +971 4 XXX XXXX | Email: info@company.ae</p>
+                                          <p>Website: www.company.ae</p>
+                                        </div>
+                                      </div>
                                     </div>
-                                    <div>
-                                      <label className="text-sm font-medium">Sales Order ID</label>
-                                      <p className="text-sm text-muted-foreground">{contract.sales_order_id}</p>
+                                    
+                                    {/* Contract Info */}
+                                    <div className="text-right">
+                                      <div className="bg-primary/5 px-4 py-2 rounded-lg border border-primary/20">
+                                        <p className="text-xs text-muted-foreground mb-1">Contract Number</p>
+                                        <p className="text-lg font-bold text-primary">{contract.contract_id}</p>
+                                      </div>
+                                      <div className="mt-3 text-xs text-muted-foreground">
+                                        <p><span className="font-medium">Sales Order:</span> {contract.sales_order_id || 'N/A'}</p>
+                                        <p><span className="font-medium">Status:</span> {contract.status || 'N/A'}</p>
+                                      </div>
                                     </div>
-                                    <div>
-                                      <label className="text-sm font-medium">Customer</label>
-                                      <p className="text-sm text-muted-foreground">{contract.customer_name}</p>
+                                  </div>
+                                </div>
+
+                                {/* Contract Body */}
+                                <div className="space-y-6">
+                                  {/* Customer Information Section */}
+                                  <div className="border rounded-lg p-4 bg-muted/30">
+                                    <h3 className="text-sm font-bold text-primary mb-3 uppercase tracking-wide">Contract Parties:</h3>
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <p className="text-xs text-muted-foreground mb-1 font-medium">Customer Name:</p>
+                                        <p className="text-sm font-semibold text-foreground mb-2">{contract.customer_name || 'N/A'}</p>
+                                        <p className="text-xs text-muted-foreground mb-1 font-medium">Company:</p>
+                                        <p className="text-xs text-foreground">{contract.company || 'N/A'}</p>
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">
+                                        <p className="mb-1"><span className="font-medium">Contract Status:</span></p>
+                                        <div className="mb-3">{getStatusBadge(contract.status)}</div>
+                                        <p className="mb-1"><span className="font-medium">Created:</span> {contract.created_at ? new Date(contract.created_at).toLocaleDateString() : 'N/A'}</p>
+                                      </div>
                                     </div>
-                                    <div>
-                                      <label className="text-sm font-medium">Company</label>
-                                      <p className="text-sm text-muted-foreground">{contract.company}</p>
+                                  </div>
+
+                                  {/* Project Details Section */}
+                                  <div className="border rounded-lg p-4">
+                                    <h3 className="text-sm font-bold text-primary mb-3 uppercase tracking-wide">Project Details</h3>
+                                    <div className="space-y-2">
+                                      <div className="flex justify-between items-start py-2 border-b">
+                                        <span className="text-sm font-medium text-muted-foreground">Project Name:</span>
+                                        <span className="text-sm font-semibold text-right">{contract.project || 'N/A'}</span>
+                                      </div>
+                                      {contract.sales_order_id && (
+                                        <div className="flex justify-between items-start py-2 border-b">
+                                          <span className="text-sm font-medium text-muted-foreground">Sales Order ID:</span>
+                                          <span className="text-sm font-semibold text-right">{contract.sales_order_id}</span>
+                                        </div>
+                                      )}
+                                      {contract.start_date && (
+                                        <div className="flex justify-between items-start py-2 border-b">
+                                          <span className="text-sm font-medium text-muted-foreground">Start Date:</span>
+                                          <span className="text-sm font-semibold text-right">{new Date(contract.start_date).toLocaleDateString()}</span>
+                                        </div>
+                                      )}
+                                      {contract.end_date && (
+                                        <div className="flex justify-between items-start py-2 border-b">
+                                          <span className="text-sm font-medium text-muted-foreground">End Date:</span>
+                                          <span className="text-sm font-semibold text-right">{new Date(contract.end_date).toLocaleDateString()}</span>
+                                        </div>
+                                      )}
                                     </div>
-                                    <div>
-                                      <label className="text-sm font-medium">Project</label>
-                                      <p className="text-sm text-muted-foreground">{contract.project}</p>
+                                  </div>
+
+                                  {/* Stock Information Section */}
+                                  {contract.stock_checked && (
+                                    <div className="border rounded-lg p-4 bg-muted/20">
+                                      <h3 className="text-sm font-bold text-primary mb-3 uppercase tracking-wide">Stock Status</h3>
+                                      <div className="flex items-center gap-3">
+                                        <Badge variant={contract.stock_available ? 'default' : 'destructive'} className="text-sm px-3 py-1">
+                                          {contract.stock_available ? '✓ In Stock' : '✗ Out of Stock'}
+                                        </Badge>
+                                        <span className="text-xs text-muted-foreground">
+                                          Stock verification {contract.stock_available ? 'completed and available' : 'completed - stock unavailable'}
+                                        </span>
+                                      </div>
                                     </div>
-                                    <div>
-                                      <label className="text-sm font-medium">Total Amount</label>
-                                      <p className="text-lg font-semibold">${contract.total_amount.toLocaleString()}</p>
+                                  )}
+
+                                  {/* Financial Summary */}
+                                  <div className="border-2 border-primary rounded-lg p-6 bg-primary/5">
+                                    <div className="flex justify-between items-center">
+                                      <div>
+                                        <p className="text-sm text-muted-foreground mb-1">Total Contract Amount</p>
+                                        <p className="text-3xl font-bold text-primary">${contract.total_amount?.toLocaleString() || '0'}</p>
+                                      </div>
+                                      <div className="text-right">
+                                        <Badge 
+                                          variant={
+                                            contract.status === 'approved' ? 'default' : 
+                                            contract.status === 'rejected' ? 'destructive' : 
+                                            'secondary'
+                                          } 
+                                          className="text-sm px-3 py-1"
+                                        >
+                                          {contract.status?.replace('_', ' ').toUpperCase() || 'PENDING'}
+                                        </Badge>
+                                      </div>
                                     </div>
+                                  </div>
+
+                                  {/* Additional Information */}
+                                  <div className="border rounded-lg p-4 bg-muted/20">
+                                    <h3 className="text-sm font-bold text-primary mb-3 uppercase tracking-wide">Contract Information</h3>
+                                    <div className="grid grid-cols-2 gap-4 text-xs">
+                                      <div>
+                                        <p className="font-medium text-muted-foreground mb-1">Contract ID</p>
+                                        <p className="text-sm">{contract.contract_id || 'N/A'}</p>
+                                      </div>
+                                      <div>
+                                        <p className="font-medium text-muted-foreground mb-1">Sales Order ID</p>
+                                        <p className="text-sm">{contract.sales_order_id || 'N/A'}</p>
+                                      </div>
+                                      <div>
+                                        <p className="font-medium text-muted-foreground mb-1">Contract Status</p>
+                                        <p className="text-sm">{contract.status?.replace('_', ' ').toUpperCase() || 'N/A'}</p>
+                                      </div>
+                                      <div>
+                                        <p className="font-medium text-muted-foreground mb-1">Created Date</p>
+                                        <p className="text-sm">{contract.created_at ? new Date(contract.created_at).toLocaleDateString() : 'N/A'}</p>
+                                      </div>
+                                      {contract.start_date && (
+                                        <div>
+                                          <p className="font-medium text-muted-foreground mb-1">Start Date</p>
+                                          <p className="text-sm">{new Date(contract.start_date).toLocaleDateString()}</p>
+                                        </div>
+                                      )}
+                                      {contract.end_date && (
+                                        <div>
+                                          <p className="font-medium text-muted-foreground mb-1">End Date</p>
+                                          <p className="text-sm">{new Date(contract.end_date).toLocaleDateString()}</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Footer Note */}
+                                  <div className="text-xs text-muted-foreground text-center border-t pt-4 mt-6">
+                                    <p className="font-medium mb-2">Contract Agreement</p>
+                                    <p>This contract is subject to approval and terms and conditions. Please review all details carefully before approval.</p>
                                   </div>
                                 </div>
                               </DialogContent>

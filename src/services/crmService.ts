@@ -158,3 +158,33 @@ export const convertToDeal = async (convertData: any) => {
   return response.json();
 };
 
+// Customers
+export const getCustomers = async () => {
+  const response = await fetch(`${API_BASE_URL}/customers`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) throw new Error('Failed to fetch customers');
+  return response.json();
+};
+
+export const getCustomerDetails = async (customerId: string) => {
+  const response = await fetch(`${API_BASE_URL}/customers/${customerId}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) throw new Error('Failed to fetch customer details');
+  return response.json();
+};
+
+export const updateCustomer = async (customerId: string, customerData: any) => {
+  const response = await fetch(`${API_BASE_URL}/customers/${customerId}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(customerData),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to update customer' }));
+    throw new Error(error.detail || 'Failed to update customer');
+  }
+  return response.json();
+};
+

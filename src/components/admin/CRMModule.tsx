@@ -50,6 +50,7 @@ import {
   CheckSquare,
   Circle,
   UserCircle2,
+  Loader2,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import * as crmService from '@/services/crmService';
@@ -255,7 +256,7 @@ type LeadFormData = {
   leadOwner: string;
 };
 
-const getDefaultLeadForm = (): LeadFormData => ({
+const getDefaultLeadForm = (defaultOwner: string = 'Shariq Ansari'): LeadFormData => ({
   salutation: 'Mr',
   firstName: '',
   lastName: '',
@@ -271,7 +272,7 @@ const getDefaultLeadForm = (): LeadFormData => ({
   noOfEmployees: '',
   annualRevenue: 0,
   territory: '',
-  leadOwner: 'Shariq Ansari',
+  leadOwner: defaultOwner,
 });
 
 const mapLeadToFormData = (lead: any): LeadFormData => ({
@@ -294,7 +295,7 @@ const mapLeadToFormData = (lead: any): LeadFormData => ({
 });
 
 export const CRMModule = () => {
-  const [customers, setCustomers] = useState(customersData);
+  const [customers, setCustomers] = useState<any[]>([]);
   const [pipeline, setPipeline] = useState(pipelineData);
   const [salesPerformance, setSalesPerformance] = useState(salesPerformanceData);
   const [leads, setLeads] = useState<any[]>([]);
@@ -305,9 +306,13 @@ export const CRMModule = () => {
   const [leadDetailsDialogOpen, setLeadDetailsDialogOpen] = useState(false);
   const [createLeadDialogOpen, setCreateLeadDialogOpen] = useState(false);
   const [documentDialogOpen, setDocumentDialogOpen] = useState(false);
+  const [editCustomerDialogOpen, setEditCustomerDialogOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState(false);
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
+  const [pipelineDetailsDialogOpen, setPipelineDetailsDialogOpen] = useState(false);
+  const [selectedPipelineItem, setSelectedPipelineItem] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [newLead, setNewLead] = useState<LeadFormData>(getDefaultLeadForm());
+  const [newLead, setNewLead] = useState<LeadFormData>(getDefaultLeadForm('Shariq Ansari'));
   const [editLeadData, setEditLeadData] = useState<LeadFormData>(getDefaultLeadForm());
   const [editLeadDialogOpen, setEditLeadDialogOpen] = useState(false);
   const [leadToEdit, setLeadToEdit] = useState<any>(null);
@@ -316,14 +321,35 @@ export const CRMModule = () => {
   // Additional state for enhanced CRM features
   const [convertToDealDialogOpen, setConvertToDealDialogOpen] = useState(false);
   const [emailComposerOpen, setEmailComposerOpen] = useState(false);
+  const [uploadDocumentDialogOpen, setUploadDocumentDialogOpen] = useState(false);
+  const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [documentForm, setDocumentForm] = useState({
+    documentType: '',
+    expiryDate: '',
+    description: '',
+    file: null as File | null
+  });
+  // Enquiry creation (Admin -> CRM Leads tab)
+  const [createEnquiryDialogOpen, setCreateEnquiryDialogOpen] = useState(false);
+  const [creatingEnquiry, setCreatingEnquiry] = useState(false);
+  const [enquiryForm, setEnquiryForm] = useState({
+    customer_name: '',
+    customer_email: '',
+    customer_id: '',
+    equipment_name: '',
+    quantity: 1,
+    rental_duration_days: 30,
+    delivery_location: '',
+    expected_delivery_date: '',
+    special_instructions: '',
+    assigned_salesperson_name: 'Admin',
+  });
   const [callDialogOpen, setCallDialogOpen] = useState(false);
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [noteDialogOpen, setNoteDialogOpen] = useState(false);
   const [leadDetailTab, setLeadDetailTab] = useState('activity');
   const [isCallActive, setIsCallActive] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
-  const [chooseExistingOrg, setChooseExistingOrg] = useState(true);
-  const [chooseExistingContact, setChooseExistingContact] = useState(false);
 
   const [emailData, setEmailData] = useState({
     to: '',
@@ -352,14 +378,188 @@ export const CRMModule = () => {
   const [leadTasks, setLeadTasks] = useState<any[]>([]);
   const [leadNotes, setLeadNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [customersLoading, setCustomersLoading] = useState(false);
   const [isUpdatingLead, setIsUpdatingLead] = useState(false);
+  const [salesUsers, setSalesUsers] = useState<Array<{ id: string; full_name: string; email: string }>>([]);
 
   const { toast } = useToast();
 
-  // Fetch leads on component mount
+  // Fetch sales users for Lead Owner dropdown
+  useEffect(() => {
+    const fetchSalesUsers = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        if (!token) return;
+
+        const response = await fetch('http://localhost:8000/api/auth/users', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const users = await response.json();
+          // Filter users with 'sales' role
+          const sales = users.filter((user: any) => user.role === 'sales').map((user: any) => ({
+            id: user.id,
+            full_name: user.full_name || user.email,
+            email: user.email
+          }));
+          setSalesUsers(sales);
+          
+          // Update default lead owner to first sales user if available
+          if (sales.length > 0) {
+            const defaultOwner = sales[0].full_name;
+            // Update default function to use this owner
+            setNewLead(prev => ({ ...prev, leadOwner: prev.leadOwner || defaultOwner }));
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching sales users:', error);
+        // Fallback to hardcoded names if API fails
+        setSalesUsers([
+          { id: '1', full_name: 'Shariq Ansari', email: 'shariq@example.com' },
+          { id: '2', full_name: 'Asif Mula', email: 'asif@example.com' },
+          { id: '3', full_name: 'Ankush Nehe', email: 'ankush@example.com' },
+          { id: '4', full_name: 'Suraj Sharma', email: 'suraj@example.com' },
+          { id: '5', full_name: 'Faris Ansari', email: 'faris@example.com' },
+        ]);
+      }
+    };
+
+    fetchSalesUsers();
+  }, []);
+
+  // Add Customer dialog state (Customers tab)
+  const [createCustomerDialogOpen, setCreateCustomerDialogOpen] = useState(false);
+  const [creatingCustomer, setCreatingCustomer] = useState(false);
+  const [customerForm, setCustomerForm] = useState({
+    name: '',
+    contactPerson: '',
+    email: '',
+    phone: '',
+  });
+
+  // Edit Customer form state
+  const [editCustomerForm, setEditCustomerForm] = useState({
+    name: '',
+    contactPerson: '',
+    email: '',
+    phone: '',
+    location: '',
+    address: '',
+    streetAddress: '',
+    city: '',
+    state: '',
+    zip: '',
+    businessPhone: '',
+    officePhone: '',
+    mobile: '',
+    cellPhone: '',
+    secondaryEmail: '',
+    secondaryPhone: '',
+    website: '',
+    billingAddress: '',
+    billingCity: '',
+    billingState: '',
+    billingZip: '',
+    shippingAddress: '',
+    shippingCity: '',
+    shippingState: '',
+    shippingZip: '',
+    projectContact: '',
+    contactPhone: '',
+    contactEmail: '',
+    paymentTerms: '',
+    specialTerms: '',
+    preferredBillingMethod: '',
+    preferredPaymentMethod: '',
+    servicesNotes: '',
+    notes: '',
+    comments: '',
+    specialInstructions: '',
+  });
+
+  const handleCreateCustomer = async () => {
+    if (!customerForm.name || !customerForm.email) {
+      toast({ title: 'Validation Error', description: 'Name and email are required', variant: 'destructive' });
+      return;
+    }
+    try {
+      setCreatingCustomer(true);
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        toast({ title: 'Authentication Error', description: 'Please log in again', variant: 'destructive' });
+        return;
+      }
+      const payload = {
+        name: customerForm.name,
+        contactPerson: customerForm.contactPerson || '',
+        email: customerForm.email,
+        phone: customerForm.phone || '',
+      };
+      const response = await fetch('http://localhost:8000/api/admin/customers', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Failed to create customer' }));
+        throw new Error(errorData.detail || 'Failed to create customer');
+      }
+      const result = await response.json();
+      toast({ title: 'Customer Created', description: `Customer ${result.customer_id || ''} added successfully` });
+      setCreateCustomerDialogOpen(false);
+      setCustomerForm({ name: '', contactPerson: '', email: '', phone: '' });
+      await fetchCustomers();
+    } catch (e: any) {
+      console.error('Create customer failed:', e);
+      toast({ title: 'Error', description: e.message || 'Failed to create customer', variant: 'destructive' });
+    } finally {
+      setCreatingCustomer(false);
+    }
+  };
+
+  // Fetch leads and customers on component mount
   useEffect(() => {
     fetchLeads();
+    fetchCustomers();
   }, []);
+
+  // Fetch customers when customers tab is active for real-time updates
+  useEffect(() => {
+    if (activeTab === 'customers') {
+      fetchCustomers();
+
+      // Set up periodic refresh every 30 seconds when customers tab is active
+      const refreshInterval = setInterval(() => {
+        fetchCustomers();
+      }, 30000); // Refresh every 30 seconds
+
+      return () => {
+        clearInterval(refreshInterval);
+      };
+    }
+  }, [activeTab]);
+
+  // Fetch leads when leads tab is active for real-time updates
+  useEffect(() => {
+    if (activeTab === 'leads') {
+      fetchLeads();
+
+      // Set up periodic refresh every 30 seconds when leads tab is active
+      const refreshInterval = setInterval(() => {
+        fetchLeads();
+      }, 30000); // Refresh every 30 seconds
+
+      return () => {
+        clearInterval(refreshInterval);
+      };
+    }
+  }, [activeTab]);
 
   // Fetch lead details when selected lead changes
   useEffect(() => {
@@ -391,6 +591,90 @@ export const CRMModule = () => {
     }
   };
 
+  // Create enquiry from CRM Leads tab (admin)
+  const handleCreateEnquiry = async () => {
+    if (!enquiryForm.customer_name || !enquiryForm.customer_email || !enquiryForm.equipment_name || !enquiryForm.delivery_location || !enquiryForm.expected_delivery_date) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please fill in all required fields',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setCreatingEnquiry(true);
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        toast({ title: 'Authentication Error', description: 'Please log in again', variant: 'destructive' });
+        return;
+      }
+
+      const normalizedDate = enquiryForm.expected_delivery_date
+        ? new Date(enquiryForm.expected_delivery_date).toISOString().slice(0, 10)
+        : '';
+
+      const response = await fetch('http://localhost:8000/api/admin/enquiries', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customer_name: enquiryForm.customer_name,
+          customer_email: enquiryForm.customer_email,
+          customer_id: enquiryForm.customer_id || '',
+          equipment_name: enquiryForm.equipment_name,
+          quantity: enquiryForm.quantity,
+          rental_duration_days: enquiryForm.rental_duration_days,
+          delivery_location: enquiryForm.delivery_location,
+          expected_delivery_date: normalizedDate,
+          special_instructions: enquiryForm.special_instructions || '',
+          assigned_salesperson_name: enquiryForm.assigned_salesperson_name || 'Admin',
+          status: 'submitted_by_customer',
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Failed to create enquiry' }));
+        throw new Error(errorData.detail || 'Failed to create enquiry');
+      }
+
+      const result = await response.json();
+      console.log('Enquiry created:', result);
+
+      // Dispatch events to notify other modules (like Sales modules) that an enquiry was created
+      window.dispatchEvent(new CustomEvent('enquiryCreated', { 
+        detail: { enquiry_id: result?.enquiry_id || result?.id } 
+      }));
+      window.dispatchEvent(new CustomEvent('leadCreated')); // Lead is also created from enquiry
+      window.dispatchEvent(new CustomEvent('refreshEnquiries'));
+
+      toast({ title: 'Success', description: 'Enquiry created successfully' });
+      setCreateEnquiryDialogOpen(false);
+      setEnquiryForm({
+        customer_name: '',
+        customer_email: '',
+        customer_id: '',
+        equipment_name: '',
+        quantity: 1,
+        rental_duration_days: 30,
+        delivery_location: '',
+        expected_delivery_date: '',
+        special_instructions: '',
+        assigned_salesperson_name: 'Admin',
+      });
+
+      // New enquiry automatically creates a lead; refresh leads
+      await fetchLeads();
+    } catch (error: any) {
+      console.error('Error creating enquiry:', error);
+      toast({ title: 'Error', description: error.message || 'Failed to create enquiry', variant: 'destructive' });
+    } finally {
+      setCreatingEnquiry(false);
+    }
+  };
+
   const fetchLeadDetails = async (leadId: string) => {
     try {
       const [emails, calls, tasks, notes] = await Promise.all([
@@ -405,6 +689,102 @@ export const CRMModule = () => {
       setLeadNotes(notes);
     } catch (error) {
       console.error('Error fetching lead details:', error);
+    }
+  };
+
+  const fetchCustomers = async () => {
+    try {
+      setCustomersLoading(true);
+      console.log('Fetching customers from backend...');
+      const data = await crmService.getCustomers();
+      console.log('Customers fetched:', data);
+
+      // Transform the data to match the expected format
+      const transformedData = data.map((customer: any) => {
+        // Preserve all fields from the backend, especially MongoDB _id
+        const mongoId = customer._id || customer.id;
+        const displayId = customer.id || customer.customer_id || mongoId;
+        
+        return {
+          ...customer, // Preserve all original fields
+          id: displayId, // Display ID for UI
+          _id: mongoId, // MongoDB ObjectId for API calls - CRITICAL for updates
+          name: customer.name || customer.companyName || '',
+          contactPerson: customer.contactPerson || customer.contact_name || customer.name || '',
+          email: customer.email || '',
+          phone: customer.phone || customer.contact_phone || '',
+          location: customer.location || customer.address || '',
+          website: customer.website || '',
+          companyType: customer.companyType || customer.company_type || '',
+          registrationDate: customer.registrationDate || customer.created_at || '',
+          totalValue: customer.totalValue || 0,
+          activeContracts: customer.activeContracts || 0,
+          completedProjects: customer.completedProjects || 0,
+          satisfactionScore: customer.satisfactionScore || 5.0,
+          status: customer.status || 'inactive',
+          outstandingAmount: customer.outstandingAmount || 0,
+          documents: customer.documents || [],
+          // Preserve all other fields that might be needed for updates
+          customer_id: customer.customer_id || displayId,
+          streetAddress: customer.streetAddress || customer.address || customer.location || '',
+          city: customer.city || '',
+          state: customer.state || '',
+          zip: customer.zip || '',
+          billingAddress: customer.billingAddress || customer.location || '',
+          billingCity: customer.billingCity || customer.city || '',
+          billingState: customer.billingState || customer.state || '',
+          billingZip: customer.billingZip || customer.zip || '',
+          shippingAddress: customer.shippingAddress || customer.deliveryLocation || customer.location || '',
+          shippingCity: customer.shippingCity || customer.city || '',
+          shippingState: customer.shippingState || customer.state || '',
+          shippingZip: customer.shippingZip || customer.zip || '',
+          projectContact: customer.projectContact || customer.contactPerson || '',
+          contactPhone: customer.contactPhone || customer.phone || '',
+          contactEmail: customer.contactEmail || customer.email || '',
+          paymentTerms: customer.paymentTerms || '',
+          specialTerms: customer.specialTerms || '',
+          preferredBillingMethod: customer.preferredBillingMethod || '',
+          preferredPaymentMethod: customer.preferredPaymentMethod || '',
+          servicesNotes: customer.servicesNotes || customer.notes || '',
+          notes: customer.notes || customer.servicesNotes || '',
+          comments: customer.comments || customer.specialInstructions || '',
+          specialInstructions: customer.specialInstructions || customer.comments || '',
+        };
+      });
+
+      // Sort customers by ID in ascending order (CUST-0001, CUST-0002, etc.)
+      const extractCustomerNumber = (cust: any) => {
+        const custId = cust.id || '';
+        if (custId.startsWith('CUST-')) {
+          try {
+            const parts = custId.split('-');
+            if (parts.length >= 2) {
+              const numStr = parts.length === 2 ? parts[1] : parts[parts.length - 1];
+              return parseInt(numStr, 10);
+            }
+          } catch (e) {
+            // Invalid ID, put at end
+          }
+        }
+        return Infinity; // Put invalid IDs at the end
+      };
+
+      transformedData.sort((a, b) => extractCustomerNumber(a) - extractCustomerNumber(b));
+
+      setCustomers(transformedData);
+    } catch (error: any) {
+      console.error('Error fetching customers:', error);
+      // Don't show error toast on initial load if backend is not running
+      // This allows the user to still see the UI
+      if (customers.length > 0) {
+        toast({
+          title: 'Error',
+          description: 'Failed to fetch customers. Backend server may not be running.',
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setCustomersLoading(false);
     }
   };
 
@@ -452,39 +832,512 @@ export const CRMModule = () => {
     return icons[stage] || Clock;
   };
 
+  const handleViewPipeline = (item: any) => {
+    setSelectedPipelineItem(item);
+    setPipelineDetailsDialogOpen(true);
+  };
+
   const handleViewCustomer = (customer: any) => {
-    setSelectedCustomer(customer);
+    // Ensure all required fields have defaults to prevent undefined errors
+    const safeCustomer = {
+      ...customer,
+      totalValue: customer.totalValue || 0,
+      activeContracts: customer.activeContracts || 0,
+      completedProjects: customer.completedProjects || 0,
+      satisfactionScore: customer.satisfactionScore || 5.0,
+      outstandingAmount: customer.outstandingAmount || 0,
+      creditLimit: customer.creditLimit || customer.credit_limit || 0,
+      name: customer.name || '',
+      contactPerson: customer.contactPerson || '',
+      email: customer.email || '',
+      phone: customer.phone || '',
+      location: customer.location || '',
+      website: customer.website || '',
+      companyType: customer.companyType || '',
+      registrationDate: customer.registrationDate || ''
+    };
+    setSelectedCustomer(safeCustomer);
     setDetailsDialogOpen(true);
   };
 
-  const handleViewDocuments = (customer: any) => {
-    setSelectedCustomer(customer);
-    setDocumentDialogOpen(true);
+  const handleEditCustomer = async (customer: any) => {
+    try {
+      // Set the selected customer first
+      setSelectedCustomer(customer);
+      
+      // Try to fetch full customer details if we have an ID
+      let fullCustomerData = customer;
+      if (customer._id || customer.id) {
+        try {
+          const customerId = customer._id || customer.id;
+          // Try to get full details from backend
+          const details = await crmService.getCustomerDetails(customerId);
+          if (details) {
+            fullCustomerData = details;
+            setSelectedCustomer(details);
+          }
+        } catch (error) {
+          console.warn('Could not fetch full customer details, using provided data:', error);
+        }
+      }
+      
+      // Populate form with customer data
+      setEditCustomerForm({
+        name: fullCustomerData.name || customer.name || '',
+        contactPerson: fullCustomerData.contactPerson || fullCustomerData.projectContact || customer.contactPerson || customer.projectContact || '',
+        email: fullCustomerData.email || customer.email || '',
+        phone: fullCustomerData.phone || customer.phone || '',
+        location: fullCustomerData.location || customer.location || '',
+        address: fullCustomerData.address || customer.address || '',
+        streetAddress: fullCustomerData.streetAddress || fullCustomerData.address || fullCustomerData.location || customer.streetAddress || customer.address || customer.location || '',
+        city: fullCustomerData.city || customer.city || '',
+        state: fullCustomerData.state || customer.state || '',
+        zip: fullCustomerData.zip || customer.zip || '',
+        businessPhone: fullCustomerData.businessPhone || customer.businessPhone || fullCustomerData.phone || customer.phone || '',
+        officePhone: fullCustomerData.officePhone || customer.officePhone || fullCustomerData.phone || customer.phone || '',
+        mobile: fullCustomerData.mobile || customer.mobile || fullCustomerData.cellPhone || customer.cellPhone || '',
+        cellPhone: fullCustomerData.cellPhone || customer.cellPhone || fullCustomerData.mobile || customer.mobile || '',
+        secondaryEmail: fullCustomerData.secondaryEmail || customer.secondaryEmail || '',
+        secondaryPhone: fullCustomerData.secondaryPhone || customer.secondaryPhone || '',
+        website: fullCustomerData.website || customer.website || '',
+        billingAddress: fullCustomerData.billingAddress || customer.billingAddress || fullCustomerData.location || customer.location || '',
+        billingCity: fullCustomerData.billingCity || customer.billingCity || fullCustomerData.city || customer.city || '',
+        billingState: fullCustomerData.billingState || customer.billingState || fullCustomerData.state || customer.state || '',
+        billingZip: fullCustomerData.billingZip || customer.billingZip || fullCustomerData.zip || customer.zip || '',
+        shippingAddress: fullCustomerData.shippingAddress || customer.shippingAddress || fullCustomerData.deliveryLocation || customer.deliveryLocation || fullCustomerData.location || customer.location || '',
+        shippingCity: fullCustomerData.shippingCity || customer.shippingCity || fullCustomerData.city || customer.city || '',
+        shippingState: fullCustomerData.shippingState || customer.shippingState || fullCustomerData.state || customer.state || '',
+        shippingZip: fullCustomerData.shippingZip || customer.shippingZip || fullCustomerData.zip || customer.zip || '',
+        projectContact: fullCustomerData.projectContact || customer.projectContact || fullCustomerData.contactPerson || customer.contactPerson || '',
+        contactPhone: fullCustomerData.contactPhone || customer.contactPhone || fullCustomerData.phone || customer.phone || '',
+        contactEmail: fullCustomerData.contactEmail || customer.contactEmail || fullCustomerData.email || customer.email || '',
+        paymentTerms: fullCustomerData.paymentTerms || customer.paymentTerms || '',
+        specialTerms: fullCustomerData.specialTerms || customer.specialTerms || '',
+        preferredBillingMethod: fullCustomerData.preferredBillingMethod || customer.preferredBillingMethod || '',
+        preferredPaymentMethod: fullCustomerData.preferredPaymentMethod || customer.preferredPaymentMethod || '',
+        servicesNotes: fullCustomerData.servicesNotes || customer.servicesNotes || fullCustomerData.notes || customer.notes || '',
+        notes: fullCustomerData.notes || customer.notes || fullCustomerData.servicesNotes || customer.servicesNotes || '',
+        comments: fullCustomerData.comments || customer.comments || fullCustomerData.specialInstructions || customer.specialInstructions || '',
+        specialInstructions: fullCustomerData.specialInstructions || customer.specialInstructions || fullCustomerData.comments || customer.comments || '',
+      });
+      
+      setEditCustomerDialogOpen(true);
+    } catch (error) {
+      console.error('Error opening edit customer dialog:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load customer data for editing',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleUpdateCustomer = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    
+    // Validation
+    if (!editCustomerForm.name?.trim() || !editCustomerForm.email?.trim()) {
+      toast({
+        title: 'Validation Error',
+        description: 'Customer name and email are required fields',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!selectedCustomer) {
+      toast({
+        title: 'Error',
+        description: 'No customer selected for update',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setEditingCustomer(true);
+      
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        toast({
+          title: 'Authentication Error',
+          description: 'Please log in again',
+          variant: 'destructive',
+        });
+        setEditingCustomer(false);
+        return;
+      }
+
+      // Get customer ID - prioritize MongoDB _id
+      let customerId = selectedCustomer._id || selectedCustomer.id;
+      
+      // If we don't have a valid ObjectId (24 chars), try to find it
+      if (!customerId || (typeof customerId === 'string' && customerId.length !== 24 && !customerId.startsWith('CUST-'))) {
+        console.log('Customer ID not found or invalid, fetching customer list...');
+        try {
+          const customers = await crmService.getCustomers();
+          const foundCustomer = customers.find((c: any) => {
+            const displayId = c.id || c.customer_id;
+            const mongoId = c._id || c.id;
+            return (
+              displayId === selectedCustomer.id ||
+              displayId === selectedCustomer.customer_id ||
+              mongoId === selectedCustomer._id ||
+              String(mongoId) === String(selectedCustomer._id) ||
+              String(mongoId) === String(selectedCustomer.id)
+            );
+          });
+          
+          if (foundCustomer) {
+            customerId = foundCustomer._id || foundCustomer.id;
+            console.log('Found customer with ID:', customerId);
+          }
+        } catch (fetchError) {
+          console.error('Error fetching customers:', fetchError);
+        }
+      }
+
+      if (!customerId) {
+        toast({
+          title: 'Error',
+          description: 'Could not determine customer ID. Please refresh the page and try again.',
+          variant: 'destructive',
+        });
+        setEditingCustomer(false);
+        return;
+      }
+
+      // Prepare update data - only send fields that have values
+      const updateData: any = {
+        name: editCustomerForm.name.trim(),
+        email: editCustomerForm.email.trim(),
+      };
+
+      // Add optional fields only if they have values
+      if (editCustomerForm.contactPerson?.trim()) updateData.contactPerson = editCustomerForm.contactPerson.trim();
+      if (editCustomerForm.phone?.trim()) updateData.phone = editCustomerForm.phone.trim();
+      if (editCustomerForm.location?.trim()) updateData.location = editCustomerForm.location.trim();
+      if (editCustomerForm.address?.trim()) updateData.address = editCustomerForm.address.trim();
+      if (editCustomerForm.streetAddress?.trim()) updateData.streetAddress = editCustomerForm.streetAddress.trim();
+      if (editCustomerForm.city?.trim()) updateData.city = editCustomerForm.city.trim();
+      if (editCustomerForm.state?.trim()) updateData.state = editCustomerForm.state.trim();
+      if (editCustomerForm.zip?.trim()) updateData.zip = editCustomerForm.zip.trim();
+      if (editCustomerForm.businessPhone?.trim()) updateData.businessPhone = editCustomerForm.businessPhone.trim();
+      if (editCustomerForm.officePhone?.trim()) updateData.officePhone = editCustomerForm.officePhone.trim();
+      if (editCustomerForm.mobile?.trim()) updateData.mobile = editCustomerForm.mobile.trim();
+      if (editCustomerForm.cellPhone?.trim()) updateData.cellPhone = editCustomerForm.cellPhone.trim();
+      if (editCustomerForm.secondaryEmail?.trim()) updateData.secondaryEmail = editCustomerForm.secondaryEmail.trim();
+      if (editCustomerForm.secondaryPhone?.trim()) updateData.secondaryPhone = editCustomerForm.secondaryPhone.trim();
+      if (editCustomerForm.website?.trim()) updateData.website = editCustomerForm.website.trim();
+      if (editCustomerForm.billingAddress?.trim()) updateData.billingAddress = editCustomerForm.billingAddress.trim();
+      if (editCustomerForm.billingCity?.trim()) updateData.billingCity = editCustomerForm.billingCity.trim();
+      if (editCustomerForm.billingState?.trim()) updateData.billingState = editCustomerForm.billingState.trim();
+      if (editCustomerForm.billingZip?.trim()) updateData.billingZip = editCustomerForm.billingZip.trim();
+      if (editCustomerForm.shippingAddress?.trim()) updateData.shippingAddress = editCustomerForm.shippingAddress.trim();
+      if (editCustomerForm.shippingCity?.trim()) updateData.shippingCity = editCustomerForm.shippingCity.trim();
+      if (editCustomerForm.shippingState?.trim()) updateData.shippingState = editCustomerForm.shippingState.trim();
+      if (editCustomerForm.shippingZip?.trim()) updateData.shippingZip = editCustomerForm.shippingZip.trim();
+      if (editCustomerForm.projectContact?.trim()) updateData.projectContact = editCustomerForm.projectContact.trim();
+      if (editCustomerForm.contactPhone?.trim()) updateData.contactPhone = editCustomerForm.contactPhone.trim();
+      if (editCustomerForm.contactEmail?.trim()) updateData.contactEmail = editCustomerForm.contactEmail.trim();
+      if (editCustomerForm.paymentTerms?.trim()) updateData.paymentTerms = editCustomerForm.paymentTerms.trim();
+      if (editCustomerForm.specialTerms?.trim()) updateData.specialTerms = editCustomerForm.specialTerms.trim();
+      if (editCustomerForm.preferredBillingMethod?.trim()) updateData.preferredBillingMethod = editCustomerForm.preferredBillingMethod.trim();
+      if (editCustomerForm.preferredPaymentMethod?.trim()) updateData.preferredPaymentMethod = editCustomerForm.preferredPaymentMethod.trim();
+      if (editCustomerForm.servicesNotes?.trim()) updateData.servicesNotes = editCustomerForm.servicesNotes.trim();
+      if (editCustomerForm.notes?.trim()) updateData.notes = editCustomerForm.notes.trim();
+      if (editCustomerForm.comments?.trim()) updateData.comments = editCustomerForm.comments.trim();
+      if (editCustomerForm.specialInstructions?.trim()) updateData.specialInstructions = editCustomerForm.specialInstructions.trim();
+
+      console.log('Updating customer:', customerId);
+      console.log('Update data:', updateData);
+
+      // Make API call
+      const customerIdStr = String(customerId);
+      const response = await fetch(`http://localhost:8000/api/crm/customers/${customerIdStr}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+        console.error('Update failed:', errorData);
+        
+        // If 404, try to find customer by customer_id field
+        if (response.status === 404) {
+          try {
+            const customers = await crmService.getCustomers();
+            const foundCustomer = customers.find((c: any) => 
+              String(c._id) === customerIdStr ||
+              c.id === customerIdStr ||
+              c.customer_id === customerIdStr ||
+              c.id === selectedCustomer.id ||
+              c.customer_id === selectedCustomer.id
+            );
+            
+            if (foundCustomer && foundCustomer._id) {
+              const actualId = String(foundCustomer._id);
+              console.log('Retrying with correct ID:', actualId);
+              
+              const retryResponse = await fetch(`http://localhost:8000/api/crm/customers/${actualId}`, {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify(updateData),
+              });
+              
+              if (!retryResponse.ok) {
+                const retryError = await retryResponse.json().catch(() => ({ detail: 'Update failed' }));
+                throw new Error(retryError.detail || 'Failed to update customer');
+              }
+            } else {
+              throw new Error(errorData.detail || 'Customer not found');
+            }
+          } catch (retryError: any) {
+            throw new Error(retryError.message || errorData.detail || 'Failed to update customer');
+          }
+        } else {
+          throw new Error(errorData.detail || `Update failed with status ${response.status}`);
+        }
+      }
+
+      const result = await response.json();
+      console.log('Update successful:', result);
+
+      toast({
+        title: 'Success',
+        description: 'Customer updated successfully',
+      });
+      
+      // Close dialog and refresh
+      setEditCustomerDialogOpen(false);
+      await fetchCustomers();
+      
+      // Refresh selected customer if details dialog is open
+      if (detailsDialogOpen && selectedCustomer) {
+        try {
+          const updatedCustomer = await crmService.getCustomerDetails(customerIdStr);
+          setSelectedCustomer(updatedCustomer);
+        } catch (fetchError) {
+          console.warn('Could not refresh customer details:', fetchError);
+        }
+      }
+      
+    } catch (error: any) {
+      console.error('Error updating customer:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update customer. Please check the console for details.',
+        variant: 'destructive',
+      });
+    } finally {
+      setEditingCustomer(false);
+    }
+  };
+
+  const handleViewDocuments = async (customer: any) => {
+    try {
+      // Use MongoDB _id for API call, fallback to formatted id
+      const customerIdToFetch = customer._id || customer.id;
+
+      // Fetch full customer details with documents
+      const customerDetails = await crmService.getCustomerDetails(customerIdToFetch);
+
+      // Transform the data to match expected format with all required fields and defaults
+      const transformedCustomer = {
+        ...customer,
+        id: customerDetails.id || customer.id, // Keep formatted ID for display
+        _id: customerDetails._id || customerDetails.id || customer._id || customer.id, // Keep MongoDB ID for reference
+        name: customerDetails.name || customerDetails.companyName || customer.name,
+        contactPerson: customerDetails.contactPerson || customerDetails.contact_name || customer.contactPerson || '',
+        email: customerDetails.email || customer.email || '',
+        phone: customerDetails.phone || customer.phone || '',
+        location: customerDetails.location || customerDetails.address || customer.location || '',
+        website: customerDetails.website || customer.website || '',
+        companyType: customerDetails.companyType || customerDetails.company_type || customer.companyType || '',
+        registrationDate: customerDetails.registrationDate || customerDetails.created_at || customer.registrationDate || '',
+        totalValue: customerDetails.totalValue || customer.totalValue || 0,
+        activeContracts: customerDetails.activeContracts || customer.activeContracts || 0,
+        completedProjects: customerDetails.completedProjects || customer.completedProjects || 0,
+        satisfactionScore: customerDetails.satisfactionScore || customer.satisfactionScore || 5.0,
+        status: customerDetails.status || customer.status || 'inactive',
+        outstandingAmount: customerDetails.outstandingAmount || customer.outstandingAmount || 0,
+        creditLimit: customerDetails.creditLimit || customerDetails.credit_limit || customer.creditLimit || 0,
+        documents: customerDetails.documents || customer.documents || []
+      };
+
+      setSelectedCustomer(transformedCustomer);
+      setDocumentDialogOpen(true);
+    } catch (error: any) {
+      console.error('Error fetching customer details:', error);
+      // Fallback: use the customer from the list if API fails with all required fields and defaults
+      setSelectedCustomer({
+        ...customer,
+        totalValue: customer.totalValue || 0,
+        activeContracts: customer.activeContracts || 0,
+        completedProjects: customer.completedProjects || 0,
+        satisfactionScore: customer.satisfactionScore || 5.0,
+        outstandingAmount: customer.outstandingAmount || 0,
+        creditLimit: customer.creditLimit || customer.credit_limit || 0,
+        documents: customer.documents || []
+      });
+      setDocumentDialogOpen(true);
+      toast({
+        title: 'Warning',
+        description: 'Could not fetch full customer details. Showing available documents.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleDocumentUpload = (customer: any) => {
-    toast({
-      title: 'Document Upload',
-      description: 'Document upload functionality would be implemented here.',
+    setSelectedCustomer(customer);
+    setUploadDocumentDialogOpen(true);
+    // Reset form
+    setDocumentForm({
+      documentType: '',
+      expiryDate: '',
+      description: '',
+      file: null
     });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setDocumentForm({
+        ...documentForm,
+        file: e.target.files[0]
+      });
+    }
+  };
+
+  const handleDocumentSubmit = async () => {
+    if (!selectedCustomer) return;
+
+    // Validate form
+    if (!documentForm.documentType) {
+      toast({
+        title: 'Error',
+        description: 'Please select a document type',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!documentForm.file) {
+      toast({
+        title: 'Error',
+        description: 'Please select a file to upload',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setUploadingDocument(true);
+
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('file', documentForm.file);
+      formData.append('customer_id', selectedCustomer._id || selectedCustomer.id);
+      formData.append('document_type', documentForm.documentType);
+      if (documentForm.expiryDate) {
+        formData.append('expiry_date', documentForm.expiryDate);
+      }
+      if (documentForm.description) {
+        formData.append('description', documentForm.description);
+      }
+
+      // Call API to upload document
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('http://localhost:8000/api/crm/customers/documents/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Failed to upload document' }));
+        throw new Error(errorData.detail || 'Failed to upload document');
+      }
+
+      const result = await response.json();
+
+      toast({
+        title: 'Success',
+        description: 'Document uploaded successfully',
+      });
+
+      // Refresh customers list to update documents in the documents tab
+      await fetchCustomers();
+
+      // Refresh customer details to show new document in dialog
+      if (selectedCustomer.id || selectedCustomer._id) {
+        try {
+          const customerDetails = await crmService.getCustomerDetails(selectedCustomer._id || selectedCustomer.id);
+          setSelectedCustomer({
+            ...selectedCustomer,
+            documents: customerDetails.documents || []
+          });
+        } catch (error) {
+          console.error('Error refreshing customer details:', error);
+          // Even if this fails, refresh customers list from the main data
+          const updatedCustomer = customers.find(c =>
+            (c.id === selectedCustomer.id) || (c._id === selectedCustomer._id)
+          );
+          if (updatedCustomer) {
+            setSelectedCustomer(updatedCustomer);
+          }
+        }
+      }
+
+      // Reset form and close dialog
+      setDocumentForm({
+        documentType: '',
+        expiryDate: '',
+        description: '',
+        file: null
+      });
+      setUploadDocumentDialogOpen(false);
+    } catch (error: any) {
+      console.error('Error uploading document:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to upload document',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingDocument(false);
+    }
   };
 
   const getTotalCustomers = () => customers.length;
   const getActiveCustomers = () => customers.filter(c => c.status === 'active').length;
-  const getTotalRevenue = () => customers.reduce((sum, c) => sum + c.totalValue, 0);
+  const getTotalRevenue = () => customers.reduce((sum, c) => sum + (c.totalValue || 0), 0);
   const getAverageSatisfaction = () => {
-    const scores = customers.map(c => c.satisfactionScore);
+    if (customers.length === 0) return '0.0';
+    const scores = customers.map(c => c.satisfactionScore || 5.0);
     return (scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(1);
   };
 
   const getExpiringDocuments = () => {
     const expiringDocs: any[] = [];
     customers.forEach(customer => {
-      customer.documents.forEach(doc => {
-        if (doc.status === 'expiring') {
-          expiringDocs.push({ ...doc, customerName: customer.name, customerId: customer.id });
-        }
-      });
+      if (customer.documents && Array.isArray(customer.documents)) {
+        customer.documents.forEach(doc => {
+          if (doc.status === 'expiring') {
+            expiringDocs.push({ ...doc, customerName: customer.name, customerId: customer.id });
+          }
+        });
+      }
     });
     return expiringDocs;
   };
@@ -521,6 +1374,12 @@ export const CRMModule = () => {
       setCreateLeadDialogOpen(false);
       setNewLead(getDefaultLeadForm());
 
+      // Dispatch event to notify other modules (like SalesCrmModule) that a lead was created
+      window.dispatchEvent(new CustomEvent('leadCreated', { 
+        detail: { lead_id: result.lead_id, lead: newLead } 
+      }));
+      window.dispatchEvent(new CustomEvent('refreshLeads'));
+
       toast({
         title: '✅ Lead Created',
         description: `${newLead.firstName} ${newLead.lastName} has been added to leads.`,
@@ -541,37 +1400,46 @@ export const CRMModule = () => {
   };
 
   const handleStartEditLead = async (lead: any) => {
-    const leadIdentifier = lead?.lead_id || lead?.id;
-    if (!leadIdentifier) {
+    try {
+      const leadIdentifier = lead?.lead_id || lead?.id;
+      if (!leadIdentifier) {
+        toast({
+          title: 'Lead unavailable',
+          description: 'Unable to identify the selected lead for editing.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      setEditLeadDialogOpen(true);
+      setIsLoadingLeadForEdit(true);
+
+      let normalizedLead = { ...lead, lead_id: lead?.lead_id || leadIdentifier };
+
+      try {
+        const latestLead = await crmService.getLead(leadIdentifier);
+        if (latestLead) {
+          normalizedLead = { ...latestLead, lead_id: latestLead.lead_id || leadIdentifier };
+        }
+      } catch (error) {
+        console.warn('Failed to refresh lead before editing:', error);
+        // Continue with cached data - don't show error toast as it's not critical
+      }
+
+      setLeadToEdit(normalizedLead);
+      const formData = mapLeadToFormData(normalizedLead);
+      setEditLeadData(formData);
+      setIsLoadingLeadForEdit(false);
+    } catch (error: any) {
+      console.error('Error starting edit lead:', error);
       toast({
-        title: 'Lead unavailable',
-        description: 'Unable to identify the selected lead for editing.',
+        title: 'Error',
+        description: error?.message || 'Failed to load lead for editing. Please try again.',
         variant: 'destructive',
       });
-      return;
+      setIsLoadingLeadForEdit(false);
+      setEditLeadDialogOpen(false);
     }
-
-    setEditLeadDialogOpen(true);
-    setIsLoadingLeadForEdit(true);
-
-    let normalizedLead = { ...lead, lead_id: lead?.lead_id || leadIdentifier };
-
-    try {
-      const latestLead = await crmService.getLead(leadIdentifier);
-      if (latestLead) {
-        normalizedLead = { ...latestLead, lead_id: latestLead.lead_id || leadIdentifier };
-      }
-    } catch (error) {
-      console.warn('Failed to refresh lead before editing:', error);
-      toast({
-        title: 'Using cached lead data',
-        description: 'Could not refresh the lead details from the server. Editing cached values instead.',
-      });
-    }
-
-    setLeadToEdit(normalizedLead);
-    setEditLeadData(mapLeadToFormData(normalizedLead));
-    setIsLoadingLeadForEdit(false);
   };
 
   const handleUpdateLead = async () => {
@@ -598,6 +1466,12 @@ export const CRMModule = () => {
     try {
       setIsUpdatingLead(true);
       await crmService.updateLead(leadIdentifier, editLeadData);
+
+      // Dispatch event to notify other modules (like SalesCrmModule) that a lead was updated
+      window.dispatchEvent(new CustomEvent('leadUpdated', { 
+        detail: { lead_id: leadIdentifier, lead: editLeadData } 
+      }));
+      window.dispatchEvent(new CustomEvent('refreshLeads'));
 
       toast({
         title: '✅ Lead Updated',
@@ -634,6 +1508,12 @@ export const CRMModule = () => {
   const handleUpdateLeadStatus = async (leadId: string, newStatus: string) => {
     try {
       await crmService.updateLeadStatus(leadId, newStatus);
+
+      // Dispatch event to notify other modules (like SalesCrmModule) that a lead status was updated
+      window.dispatchEvent(new CustomEvent('leadUpdated', { 
+        detail: { lead_id: leadId, status: newStatus } 
+      }));
+      window.dispatchEvent(new CustomEvent('refreshLeads'));
 
       toast({
         title: '✅ Status Updated',
@@ -847,31 +1727,56 @@ export const CRMModule = () => {
     }
   };
 
-  // Convert to Deal functionality
-  const handleConvertToDeal = async () => {
+  // Convert to Customer functionality
+  const handleConvertToCustomer = async () => {
     if (!selectedLead) return;
 
     try {
-      await crmService.convertToDeal({
-        leadId: selectedLead.lead_id,
-        useExistingOrg: chooseExistingOrg,
-        useExistingContact: chooseExistingContact,
+      // Prepare customer data from lead
+      const customerData = {
+        name: selectedLead.organization || `${selectedLead.firstName} ${selectedLead.lastName}`,
+        email: selectedLead.email || '',
+        phone: selectedLead.mobile || '',
+        cr_number: '', // Can be added later if needed
+        vat_number: '', // Can be added later if needed
+        credit_limit: 0, // Default credit limit
+        deposit_amount: 0, // Default deposit amount
+      };
+
+      // Call admin API to create customer
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('http://localhost:8000/api/admin/customers', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(customerData),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Failed to create customer' }));
+        throw new Error(errorData.detail || 'Failed to create customer');
+      }
+
+      const result = await response.json();
+
       toast({
-        title: '✅ Lead Converted to Deal',
-        description: `${selectedLead.firstName} ${selectedLead.lastName} has been converted to a deal.`,
+        title: '✅ Lead Converted to Customer',
+        description: `${selectedLead.firstName} ${selectedLead.lastName} has been converted to a customer (${result.customer_id || 'Customer created'}).`,
       });
 
       setConvertToDealDialogOpen(false);
       setLeadDetailsDialogOpen(false);
 
-      // Refresh leads
+      // Refresh leads and customers
       await fetchLeads();
-    } catch (error) {
+      await fetchCustomers();
+    } catch (error: any) {
+      console.error('Error converting lead to customer:', error);
       toast({
         title: 'Error',
-        description: 'Failed to convert lead to deal',
+        description: error.message || 'Failed to convert lead to customer',
         variant: 'destructive',
       });
     }
@@ -957,12 +1862,23 @@ export const CRMModule = () => {
           <TabsTrigger value="leads">Leads</TabsTrigger>
           <TabsTrigger value="customers">Customers</TabsTrigger>
           <TabsTrigger value="pipeline">Sales Pipeline</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="performance">Performance</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-4">
+          {/* Header with Add Enquiry Button */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">CRM Overview</h3>
+              <p className="text-sm text-muted-foreground">Monitor customer relationships and sales pipeline</p>
+            </div>
+            <Button onClick={() => setCreateEnquiryDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Enquiry
+            </Button>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Recent Customer Activity */}
             <Card>
@@ -1068,238 +1984,6 @@ export const CRMModule = () => {
                 className="pl-10"
               />
             </div>
-            <Dialog open={createLeadDialogOpen} onOpenChange={setCreateLeadDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Lead
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Create Lead</DialogTitle>
-                  <DialogDescription>Add a new lead to the CRM system</DialogDescription>
-                </DialogHeader>
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Row 1 */}
-                  <div className="space-y-2">
-                    <Label>Salutation</Label>
-                    <Select value={newLead.salutation} onValueChange={(value) => setNewLead({ ...newLead, salutation: value })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Mr">Mr</SelectItem>
-                        <SelectItem value="Mrs">Mrs</SelectItem>
-                        <SelectItem value="Ms">Ms</SelectItem>
-                        <SelectItem value="Dr">Dr</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>First Name *</Label>
-                    <Input
-                      value={newLead.firstName}
-                      onChange={(e) => setNewLead({ ...newLead, firstName: e.target.value })}
-                      placeholder="John"
-                    />
-                  </div>
-
-                  {/* Row 2 */}
-                  <div className="space-y-2">
-                    <Label>Last Name</Label>
-                    <Input
-                      value={newLead.lastName}
-                      onChange={(e) => setNewLead({ ...newLead, lastName: e.target.value })}
-                      placeholder="Doe"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Email *</Label>
-                    <Input
-                      type="email"
-                      value={newLead.email}
-                      onChange={(e) => setNewLead({ ...newLead, email: e.target.value })}
-                      placeholder="john@doe.com"
-                    />
-                  </div>
-
-                  {/* Row 3 */}
-                  <div className="space-y-2">
-                    <Label>Mobile No</Label>
-                    <Input
-                      value={newLead.mobile}
-                      onChange={(e) => setNewLead({ ...newLead, mobile: e.target.value })}
-                      placeholder="+91 9876543210"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Gender</Label>
-                    <Select value={newLead.gender} onValueChange={(value) => setNewLead({ ...newLead, gender: value })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Male">Male</SelectItem>
-                        <SelectItem value="Female">Female</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Row 4 */}
-                  <div className="space-y-2">
-                    <Label>Organization</Label>
-                    <Input
-                      value={newLead.organization}
-                      onChange={(e) => setNewLead({ ...newLead, organization: e.target.value })}
-                      placeholder="Frappe Technologies"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Website</Label>
-                    <Input
-                      value={newLead.website}
-                      onChange={(e) => setNewLead({ ...newLead, website: e.target.value })}
-                      placeholder="https://frappe.io"
-                    />
-                  </div>
-
-                  {/* Row 5 */}
-                  <div className="space-y-2">
-                    <Label>Job Title</Label>
-                    <Input
-                      value={newLead.jobTitle}
-                      onChange={(e) => setNewLead({ ...newLead, jobTitle: e.target.value })}
-                      placeholder="Product Manager"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>No of Employees</Label>
-                    <Select value={newLead.noOfEmployees} onValueChange={(value) => setNewLead({ ...newLead, noOfEmployees: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select range" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1-10">1-10</SelectItem>
-                        <SelectItem value="11-50">11-50</SelectItem>
-                        <SelectItem value="51-200">51-200</SelectItem>
-                        <SelectItem value="201-500">201-500</SelectItem>
-                        <SelectItem value="501-1000">501-1000</SelectItem>
-                        <SelectItem value="1000-5000">1000-5000</SelectItem>
-                        <SelectItem value="5000-10000">5000-10000</SelectItem>
-                        <SelectItem value="10000+">10000+</SelectItem>
-                        <SelectItem value="50000+">50000+</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Row 6 */}
-                  <div className="space-y-2">
-                    <Label>Territory</Label>
-                    <Select value={newLead.territory} onValueChange={(value) => setNewLead({ ...newLead, territory: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select territory" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="India">India</SelectItem>
-                        <SelectItem value="USA">USA</SelectItem>
-                        <SelectItem value="UAE">UAE</SelectItem>
-                        <SelectItem value="UK">UK</SelectItem>
-                        <SelectItem value="Singapore">Singapore</SelectItem>
-                        <SelectItem value="Australia">Australia</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Annual Revenue</Label>
-                    <Input
-                      type="number"
-                      value={newLead.annualRevenue}
-                      onChange={(e) => setNewLead({ ...newLead, annualRevenue: Number(e.target.value) })}
-                      placeholder="1000000"
-                    />
-                  </div>
-
-                  {/* Row 7 */}
-                  <div className="space-y-2">
-                    <Label>Industry</Label>
-                    <Select value={newLead.industry} onValueChange={(value) => setNewLead({ ...newLead, industry: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select industry" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Technology">Technology</SelectItem>
-                        <SelectItem value="Construction">Construction</SelectItem>
-                        <SelectItem value="Automotive">Automotive</SelectItem>
-                        <SelectItem value="Finance">Finance</SelectItem>
-                        <SelectItem value="Healthcare">Healthcare</SelectItem>
-                        <SelectItem value="Manufacturing">Manufacturing</SelectItem>
-                        <SelectItem value="Retail">Retail</SelectItem>
-                        <SelectItem value="Education">Education</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Source</Label>
-                    <Select value={newLead.source} onValueChange={(value) => setNewLead({ ...newLead, source: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select source" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="LinkedIn">LinkedIn</SelectItem>
-                        <SelectItem value="Facebook">Facebook</SelectItem>
-                        <SelectItem value="Google">Google</SelectItem>
-                        <SelectItem value="Advertisement">Advertisement</SelectItem>
-                        <SelectItem value="Web">Web</SelectItem>
-                        <SelectItem value="Youtube">Youtube</SelectItem>
-                        <SelectItem value="Others">Others</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Row 8 */}
-                  <div className="space-y-2">
-                    <Label>Status</Label>
-                    <Select value={newLead.status} onValueChange={(value) => setNewLead({ ...newLead, status: value })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="New">New</SelectItem>
-                        <SelectItem value="Qualified">Qualified</SelectItem>
-                        <SelectItem value="Nurture">Nurture</SelectItem>
-                        <SelectItem value="Junk">Junk</SelectItem>
-                        <SelectItem value="Unqualified">Unqualified</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Lead Owner</Label>
-                    <Select value={newLead.leadOwner} onValueChange={(value) => setNewLead({ ...newLead, leadOwner: value })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Shariq Ansari">Shariq Ansari</SelectItem>
-                        <SelectItem value="Asif Mula">Asif Mula</SelectItem>
-                        <SelectItem value="Ankush Nehe">Ankush Nehe</SelectItem>
-                        <SelectItem value="Suraj Sharma">Suraj Sharma</SelectItem>
-                        <SelectItem value="Faris Ansari">Faris Ansari</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 mt-4">
-                  <Button variant="outline" onClick={() => setCreateLeadDialogOpen(false)} disabled={loading}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleCreateLead} disabled={loading}>
-                    {loading ? 'Creating...' : 'Create Lead'}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
 
             <Dialog
               open={editLeadDialogOpen}
@@ -1318,7 +2002,13 @@ export const CRMModule = () => {
                   <DialogDescription>Update lead information to keep your pipeline accurate.</DialogDescription>
                 </DialogHeader>
 
-                <div className="grid grid-cols-2 gap-4">
+                {isLoadingLeadForEdit ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <span className="ml-3 text-muted-foreground">Loading lead data...</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
                   {/* Row 1 */}
                   <div className="space-y-2">
                     <Label>Salutation</Label>
@@ -1519,15 +2209,26 @@ export const CRMModule = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Shariq Ansari">Shariq Ansari</SelectItem>
-                        <SelectItem value="Asif Mula">Asif Mula</SelectItem>
-                        <SelectItem value="Ankush Nehe">Ankush Nehe</SelectItem>
-                        <SelectItem value="Suraj Sharma">Suraj Sharma</SelectItem>
-                        <SelectItem value="Faris Ansari">Faris Ansari</SelectItem>
+                        {salesUsers.length > 0 ? (
+                          salesUsers.map((user) => (
+                            <SelectItem key={user.id} value={user.full_name}>
+                              {user.full_name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <>
+                            <SelectItem value="Shariq Ansari">Shariq Ansari</SelectItem>
+                            <SelectItem value="Asif Mula">Asif Mula</SelectItem>
+                            <SelectItem value="Ankush Nehe">Ankush Nehe</SelectItem>
+                            <SelectItem value="Suraj Sharma">Suraj Sharma</SelectItem>
+                            <SelectItem value="Faris Ansari">Faris Ansari</SelectItem>
+                          </>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
+                  </div>
+                )}
 
                 <div className="flex justify-end gap-2 mt-4">
                   <Button
@@ -1536,13 +2237,21 @@ export const CRMModule = () => {
                       setEditLeadDialogOpen(false);
                       setLeadToEdit(null);
                       setEditLeadData(getDefaultLeadForm());
+                      setIsLoadingLeadForEdit(false);
                     }}
-                    disabled={isUpdatingLead}
+                    disabled={isUpdatingLead || isLoadingLeadForEdit}
                   >
                     Cancel
                   </Button>
-                  <Button onClick={handleUpdateLead} disabled={isUpdatingLead}>
-                    {isUpdatingLead ? 'Saving…' : 'Save Changes'}
+                  <Button onClick={handleUpdateLead} disabled={isUpdatingLead || isLoadingLeadForEdit || !leadToEdit}>
+                    {isUpdatingLead ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving…
+                      </>
+                    ) : (
+                      'Save Changes'
+                    )}
                   </Button>
                 </div>
               </DialogContent>
@@ -1584,7 +2293,7 @@ export const CRMModule = () => {
                             <div className="font-medium">
                               {lead.salutation} {lead.firstName} {lead.lastName}
                             </div>
-                            <div className="text-xs text-muted-foreground">{lead.id}</div>
+                            <div className="text-xs text-muted-foreground">{lead.lead_id || lead.id}</div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -1663,7 +2372,7 @@ export const CRMModule = () => {
                           {selectedLead.status}
                         </Badge>
                         <Button onClick={() => setConvertToDealDialogOpen(true)}>
-                          Convert to Deal
+                          Convert to Customer
                         </Button>
                       </div>
                     </div>
@@ -1707,7 +2416,7 @@ export const CRMModule = () => {
                         {/* Emails Tab */}
                         <TabsContent value="emails" className="mt-0">
                           <div className="space-y-4">
-                            <Button onClick={() => { setEmailData({ ...emailData, to: selectedLead.email, subject: `${selectedLead.firstName} ${selectedLead.lastName} (#${selectedLead.id})` }); setEmailComposerOpen(true); }}>
+                            <Button onClick={() => { setEmailData({ ...emailData, to: selectedLead.email, subject: `${selectedLead.firstName} ${selectedLead.lastName} (#${selectedLead.lead_id || selectedLead.id})` }); setEmailComposerOpen(true); }}>
                               <Mail className="h-4 w-4 mr-2" />
                               New Email
                             </Button>
@@ -1878,7 +2587,7 @@ export const CRMModule = () => {
                         <h3 className="font-bold text-lg">
                           {selectedLead.salutation} {selectedLead.firstName} {selectedLead.lastName}
                         </h3>
-                        <p className="text-sm text-muted-foreground">{selectedLead.id}</p>
+                        <p className="text-sm text-muted-foreground">{selectedLead.lead_id || selectedLead.id}</p>
                         <div className="flex items-center justify-center gap-3 mt-3">
                           <Button size="icon" variant="outline" onClick={handleMakeCall}>
                             <Phone className="h-4 w-4" />
@@ -1967,10 +2676,46 @@ export const CRMModule = () => {
                 className="pl-9"
               />
             </div>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Customer
-            </Button>
+            <Dialog open={createCustomerDialogOpen} onOpenChange={setCreateCustomerDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => setCreateCustomerDialogOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Customer
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Create New Customer</DialogTitle>
+                  <DialogDescription>Enter customer details to add to CRM</DialogDescription>
+                </DialogHeader>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="cust_name">Company Name *</Label>
+                    <Input id="cust_name" value={customerForm.name} onChange={(e) => setCustomerForm({ ...customerForm, name: e.target.value })} placeholder="Company Name" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="cust_contact">Contact Person</Label>
+                    <Input id="cust_contact" value={customerForm.contactPerson} onChange={(e) => setCustomerForm({ ...customerForm, contactPerson: e.target.value })} placeholder="Contact Person Name" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="cust_email">Email *</Label>
+                    <Input id="cust_email" type="email" value={customerForm.email} onChange={(e) => setCustomerForm({ ...customerForm, email: e.target.value })} placeholder="name@company.com" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="cust_phone">Phone</Label>
+                    <Input id="cust_phone" value={customerForm.phone} onChange={(e) => setCustomerForm({ ...customerForm, phone: e.target.value })} placeholder="+971 5x xxx xxxx" />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={() => setCreateCustomerDialogOpen(false)} disabled={creatingCustomer}>Cancel</Button>
+                  <Button onClick={handleCreateCustomer} disabled={creatingCustomer || !customerForm.name || !customerForm.email}>
+                    {creatingCustomer ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating...</> : 'Create Customer'}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
 
           <div className="border rounded-lg">
@@ -1989,62 +2734,84 @@ export const CRMModule = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCustomers.map((customer) => (
-                  <TableRow key={customer.id}>
-                    <TableCell className="font-medium">{customer.id}</TableCell>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{customer.name}</p>
-                        <p className="text-xs text-muted-foreground">{customer.companyType}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <p className="text-sm">{customer.contactPerson}</p>
-                        <p className="text-xs text-muted-foreground">{customer.email}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm">{customer.phone}</TableCell>
-                    <TableCell className="font-semibold">AED {customer.totalValue.toLocaleString()}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{customer.activeContracts}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        <span className="font-medium">{customer.satisfactionScore}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusBadgeVariant(customer.status)}>
-                        {customer.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex gap-1 justify-end">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title="View Details"
-                          onClick={() => handleViewCustomer(customer)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title="View Documents"
-                          onClick={() => handleViewDocuments(customer)}
-                        >
-                          <FileText className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" title="Edit Customer">
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                {customersLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-8">
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Loading customers...</span>
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : filteredCustomers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                      No customers found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredCustomers.map((customer) => (
+                    <TableRow key={customer.id}>
+                      <TableCell className="font-medium">{customer.id}</TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{customer.name}</p>
+                          <p className="text-xs text-muted-foreground">{customer.companyType}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="text-sm">{customer.contactPerson}</p>
+                          <p className="text-xs text-muted-foreground">{customer.email}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">{customer.phone}</TableCell>
+                      <TableCell className="font-semibold">AED {customer.totalValue.toLocaleString()}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{customer.activeContracts}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                          <span className="font-medium">{customer.satisfactionScore}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusBadgeVariant(customer.status)}>
+                          {customer.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex gap-1 justify-end">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="View Details"
+                            onClick={() => handleViewCustomer(customer)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Upload Document"
+                            onClick={() => handleDocumentUpload(customer)}
+                          >
+                            <FileText className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            title="Edit Customer"
+                            onClick={() => handleEditCustomer(customer)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
@@ -2149,7 +2916,12 @@ export const CRMModule = () => {
                           {item.contractValue ? `AED ${item.contractValue.toLocaleString()}` : '-'}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" title="View Pipeline">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="View Pipeline"
+                            onClick={() => handleViewPipeline(item)}
+                          >
                             <Eye className="h-4 w-4" />
                           </Button>
                         </TableCell>
@@ -2162,80 +2934,7 @@ export const CRMModule = () => {
           </Card>
         </TabsContent>
 
-        {/* Documents Tab */}
-        <TabsContent value="documents" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Document Tracking Center</CardTitle>
-              <CardDescription>Monitor passports, licenses, IDs, and all customer documents</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {customers.map((customer) => (
-                  <div key={customer.id} className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h4 className="font-semibold">{customer.name}</h4>
-                        <p className="text-sm text-muted-foreground">{customer.id} • {customer.contactPerson}</p>
-                      </div>
-                      <Button size="sm" onClick={() => handleDocumentUpload(customer)}>
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload Document
-                      </Button>
-                    </div>
-
-                    {/* Key Document Summary */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-                      <div className="bg-muted p-3 rounded-lg">
-                        <p className="text-xs text-muted-foreground">Passport</p>
-                        <p className="text-sm font-medium">{customer.passportNumber}</p>
-                        <p className="text-xs text-muted-foreground">Exp: {customer.passportExpiry}</p>
-                      </div>
-                      <div className="bg-muted p-3 rounded-lg">
-                        <p className="text-xs text-muted-foreground">Emirates ID</p>
-                        <p className="text-sm font-medium truncate">{customer.emiratesId}</p>
-                      </div>
-                      <div className="bg-muted p-3 rounded-lg">
-                        <p className="text-xs text-muted-foreground">Trade License</p>
-                        <p className="text-sm font-medium">{customer.tradeLicense}</p>
-                        <p className="text-xs text-muted-foreground">Exp: {customer.licenseExpiry}</p>
-                      </div>
-                      <div className="bg-muted p-3 rounded-lg">
-                        <p className="text-xs text-muted-foreground">VAT Number</p>
-                        <p className="text-sm font-medium">{customer.vatNumber}</p>
-                      </div>
-                    </div>
-
-                    {/* Document List */}
-                    <div className="space-y-2">
-                      {customer.documents.map((doc, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-2 bg-muted/50 rounded">
-                          <div className="flex items-center gap-3">
-                            <FileCheck className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <p className="text-sm font-medium">{doc.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                Uploaded: {doc.uploadDate} • Expires: {doc.expiryDate}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant={getStatusBadgeVariant(doc.status)}>
-                              {doc.status}
-                            </Badge>
-                            <Button variant="ghost" size="icon">
-                              <Download className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {/* Documents Tab removed per request */}
 
         {/* Performance Tab */}
         <TabsContent value="performance" className="space-y-4">
@@ -2369,97 +3068,538 @@ export const CRMModule = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Customer Details Dialog */}
+      {/* Customer Details Dialog - Client Information Sheet */}
       <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Customer Details</DialogTitle>
-            <DialogDescription>Complete customer profile and information</DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           {selectedCustomer && (
             <div className="space-y-6">
-              {/* Basic Info */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Company Name</Label>
-                    <p className="font-medium">{selectedCustomer.name}</p>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Contact Person</Label>
-                    <p className="font-medium">{selectedCustomer.contactPerson}</p>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Email</Label>
-                    <p className="font-medium">{selectedCustomer.email}</p>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Phone</Label>
-                    <p className="font-medium">{selectedCustomer.phone}</p>
-                  </div>
+              {/* Header */}
+              <div className="flex items-center justify-between border-b-2 border-primary pb-4">
+                <h2 className="text-2xl font-bold text-primary">Client Information Sheet</h2>
+                <div className="px-4 py-2 border-2 border-primary rounded bg-primary/5">
+                  <p className="text-sm font-semibold text-primary">{selectedCustomer.id || 'New customer ID'}</p>
                 </div>
-                <div className="space-y-3">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Location</Label>
-                    <p className="font-medium">{selectedCustomer.location}</p>
+              </div>
+
+              {/* Comments / Special Instructions */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Comments / Special Instructions</Label>
+                <div className="min-h-[80px] p-3 border rounded-md bg-muted/50">
+                  <p className="text-sm text-muted-foreground">
+                    {selectedCustomer.specialInstructions || selectedCustomer.special_instructions || selectedCustomer.comments || 'No special instructions or comments available.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Customer Info Section */}
+              <div className="space-y-3 border-b pb-4">
+                <h3 className="text-base font-bold">Customer Info</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-start gap-4">
+                    <Label className="text-sm font-medium min-w-[140px]">Customer Name:</Label>
+                    <p className="text-sm flex-1">{selectedCustomer.name || 'N/A'}</p>
                   </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Website</Label>
-                    <p className="font-medium">{selectedCustomer.website}</p>
+                  <div className="flex items-start gap-4">
+                    <Label className="text-sm font-medium min-w-[140px]">Street Address:</Label>
+                    <p className="text-sm flex-1">{selectedCustomer.location || selectedCustomer.address || selectedCustomer.streetAddress || 'N/A'}</p>
                   </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Company Type</Label>
-                    <p className="font-medium">{selectedCustomer.companyType}</p>
+                  <div className="flex items-start gap-4">
+                    <Label className="text-sm font-medium min-w-[140px]">City, State, Zip:</Label>
+                    <p className="text-sm flex-1">{selectedCustomer.city || selectedCustomer.location || 'N/A'}</p>
                   </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Registration Date</Label>
-                    <p className="font-medium">{selectedCustomer.registrationDate}</p>
+                  <div className="flex items-start gap-4">
+                    <Label className="text-sm font-medium min-w-[140px]">Business Phone:</Label>
+                    <p className="text-sm flex-1">{selectedCustomer.phone || selectedCustomer.businessPhone || 'N/A'}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Financial Info */}
-              <div className="border-t pt-4">
-                <h4 className="font-semibold mb-3">Financial Information</h4>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-muted p-3 rounded-lg">
-                    <Label className="text-xs text-muted-foreground">Total Value</Label>
-                    <p className="text-lg font-bold">AED {selectedCustomer.totalValue.toLocaleString()}</p>
-                  </div>
-                  <div className="bg-muted p-3 rounded-lg">
-                    <Label className="text-xs text-muted-foreground">Credit Limit</Label>
-                    <p className="text-lg font-bold">AED {selectedCustomer.creditLimit.toLocaleString()}</p>
-                  </div>
-                  <div className="bg-muted p-3 rounded-lg">
-                    <Label className="text-xs text-muted-foreground">Outstanding</Label>
-                    <p className="text-lg font-bold text-orange-600">AED {selectedCustomer.outstandingAmount.toLocaleString()}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Project Stats */}
-              <div className="border-t pt-4">
-                <h4 className="font-semibold mb-3">Project Statistics</h4>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center p-3 border rounded-lg">
-                    <p className="text-2xl font-bold text-blue-600">{selectedCustomer.activeContracts}</p>
-                    <p className="text-sm text-muted-foreground">Active Contracts</p>
-                  </div>
-                  <div className="text-center p-3 border rounded-lg">
-                    <p className="text-2xl font-bold text-green-600">{selectedCustomer.completedProjects}</p>
-                    <p className="text-sm text-muted-foreground">Completed Projects</p>
-                  </div>
-                  <div className="text-center p-3 border rounded-lg">
-                    <div className="flex items-center justify-center gap-1">
-                      <Star className="h-6 w-6 fill-yellow-400 text-yellow-400" />
-                      <p className="text-2xl font-bold">{selectedCustomer.satisfactionScore}</p>
+              {/* Bill To and Ship To Address */}
+              <div className="grid grid-cols-2 gap-6 border-b pb-4">
+                {/* Bill To Address */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-bold">Bill To Address:</Label>
+                  <div className="space-y-2">
+                    <div className="flex items-start gap-4">
+                      <Label className="text-sm font-medium min-w-[120px]">Street Address:</Label>
+                      <p className="text-sm flex-1">{selectedCustomer.billingAddress || selectedCustomer.location || 'N/A'}</p>
                     </div>
-                    <p className="text-sm text-muted-foreground">Satisfaction Score</p>
+                    <div className="flex items-start gap-4">
+                      <Label className="text-sm font-medium min-w-[120px]">City, State, Zip:</Label>
+                      <p className="text-sm flex-1">{selectedCustomer.billingCity || selectedCustomer.city || selectedCustomer.location || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Ship To Address */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-bold">Ship To Address</Label>
+                  <div className="space-y-2">
+                    <div className="flex items-start gap-4">
+                      <Label className="text-sm font-medium min-w-[120px]">Street Address:</Label>
+                      <p className="text-sm flex-1">{selectedCustomer.shippingAddress || selectedCustomer.deliveryLocation || selectedCustomer.location || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Primary customer contact */}
+              <div className="space-y-3 border-b pb-4">
+                <Label className="text-sm font-bold">Primary customer contact</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-start gap-4">
+                    <Label className="text-sm font-medium min-w-[140px]">Office Phone:</Label>
+                    <p className="text-sm flex-1">{selectedCustomer.phone || selectedCustomer.officePhone || 'N/A'}</p>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <Label className="text-sm font-medium min-w-[140px]">Email Address(s):</Label>
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm">{selectedCustomer.email || 'N/A'}</p>
+                      {selectedCustomer.secondaryEmail && (
+                        <p className="text-sm">{selectedCustomer.secondaryEmail}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <Label className="text-sm font-medium min-w-[140px]">Cell Phone(s):</Label>
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm">{selectedCustomer.mobile || selectedCustomer.cellPhone || selectedCustomer.phone || 'N/A'}</p>
+                      {selectedCustomer.secondaryPhone && (
+                        <p className="text-sm">{selectedCustomer.secondaryPhone}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contract Name/No. Section */}
+              <div className="space-y-3">
+                <Label className="text-sm font-bold">Contract Name/No.</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-start gap-4">
+                    <Label className="text-sm font-medium min-w-[140px]">Project Contact:</Label>
+                    <p className="text-sm flex-1">{selectedCustomer.contactPerson || selectedCustomer.projectContact || 'N/A'}</p>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <Label className="text-sm font-medium min-w-[140px]">Phone:</Label>
+                    <p className="text-sm flex-1">{selectedCustomer.contactPhone || selectedCustomer.phone || 'N/A'}</p>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <Label className="text-sm font-medium min-w-[140px]">Email Address:</Label>
+                    <p className="text-sm flex-1">{selectedCustomer.contactEmail || selectedCustomer.email || 'N/A'}</p>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <Label className="text-sm font-medium min-w-[140px]">Payment Terms:</Label>
+                    <p className="text-sm flex-1">{selectedCustomer.paymentTerms || 'N/A'}</p>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <Label className="text-sm font-medium min-w-[140px]">Special Terms:</Label>
+                    <p className="text-sm flex-1">{selectedCustomer.specialTerms || 'N/A'}</p>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <Label className="text-sm font-medium min-w-[140px]">Preferred Billing Method:</Label>
+                    <p className="text-sm flex-1">{selectedCustomer.preferredBillingMethod || 'N/A'}</p>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <Label className="text-sm font-medium min-w-[140px]">Preferred Payment Method:</Label>
+                    <p className="text-sm flex-1">{selectedCustomer.preferredPaymentMethod || 'N/A'}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <div className="flex items-start gap-4">
+                      <Label className="text-sm font-medium min-w-[140px]">Services Notes:</Label>
+                      <div className="min-h-[60px] p-3 border rounded-md bg-muted/50 flex-1">
+                        <p className="text-sm text-muted-foreground">
+                          {selectedCustomer.servicesNotes || selectedCustomer.notes || 'N/A'}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Customer Dialog */}
+      <Dialog open={editCustomerDialogOpen} onOpenChange={setEditCustomerDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Customer</DialogTitle>
+            <DialogDescription>Update customer information and details</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* Basic Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold border-b pb-2">Basic Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Customer Name *</Label>
+                  <Input
+                    value={editCustomerForm.name}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, name: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Contact Person</Label>
+                  <Input
+                    value={editCustomerForm.contactPerson}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, contactPerson: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email *</Label>
+                  <Input
+                    type="email"
+                    value={editCustomerForm.email}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, email: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Primary Phone</Label>
+                  <Input
+                    value={editCustomerForm.phone}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, phone: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Website</Label>
+                  <Input
+                    value={editCustomerForm.website}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, website: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Address Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold border-b pb-2">Address Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Street Address</Label>
+                  <Input
+                    value={editCustomerForm.streetAddress}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, streetAddress: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>City</Label>
+                  <Input
+                    value={editCustomerForm.city}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, city: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>State</Label>
+                  <Input
+                    value={editCustomerForm.state}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, state: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Zip Code</Label>
+                  <Input
+                    value={editCustomerForm.zip}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, zip: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Contact Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold border-b pb-2">Contact Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Business Phone</Label>
+                  <Input
+                    value={editCustomerForm.businessPhone}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, businessPhone: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Office Phone</Label>
+                  <Input
+                    value={editCustomerForm.officePhone}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, officePhone: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Mobile / Cell Phone</Label>
+                  <Input
+                    value={editCustomerForm.mobile}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, mobile: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Secondary Email</Label>
+                  <Input
+                    type="email"
+                    value={editCustomerForm.secondaryEmail}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, secondaryEmail: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Secondary Phone</Label>
+                  <Input
+                    value={editCustomerForm.secondaryPhone}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, secondaryPhone: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Billing Address */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold border-b pb-2">Billing Address</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Billing Street Address</Label>
+                  <Input
+                    value={editCustomerForm.billingAddress}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, billingAddress: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Billing City</Label>
+                  <Input
+                    value={editCustomerForm.billingCity}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, billingCity: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Billing State</Label>
+                  <Input
+                    value={editCustomerForm.billingState}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, billingState: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Billing Zip Code</Label>
+                  <Input
+                    value={editCustomerForm.billingZip}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, billingZip: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Shipping Address */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold border-b pb-2">Shipping Address</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Shipping Street Address</Label>
+                  <Input
+                    value={editCustomerForm.shippingAddress}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, shippingAddress: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Shipping City</Label>
+                  <Input
+                    value={editCustomerForm.shippingCity}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, shippingCity: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Shipping State</Label>
+                  <Input
+                    value={editCustomerForm.shippingState}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, shippingState: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Shipping Zip Code</Label>
+                  <Input
+                    value={editCustomerForm.shippingZip}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, shippingZip: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Project Contact */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold border-b pb-2">Project Contact</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Project Contact Name</Label>
+                  <Input
+                    value={editCustomerForm.projectContact}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, projectContact: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Contact Phone</Label>
+                  <Input
+                    value={editCustomerForm.contactPhone}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, contactPhone: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2 col-span-2">
+                  <Label>Contact Email</Label>
+                  <Input
+                    type="email"
+                    value={editCustomerForm.contactEmail}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, contactEmail: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Payment & Terms */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold border-b pb-2">Payment & Terms</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Payment Terms</Label>
+                  <Input
+                    value={editCustomerForm.paymentTerms}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, paymentTerms: e.target.value })}
+                    placeholder="e.g., Net 30, Due on Receipt"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Special Terms</Label>
+                  <Input
+                    value={editCustomerForm.specialTerms}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, specialTerms: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Preferred Billing Method</Label>
+                  <Select
+                    value={editCustomerForm.preferredBillingMethod}
+                    onValueChange={(value) => setEditCustomerForm({ ...editCustomerForm, preferredBillingMethod: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select billing method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Email">Email</SelectItem>
+                      <SelectItem value="Mail">Mail</SelectItem>
+                      <SelectItem value="Online Portal">Online Portal</SelectItem>
+                      <SelectItem value="Fax">Fax</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Preferred Payment Method</Label>
+                  <Select
+                    value={editCustomerForm.preferredPaymentMethod}
+                    onValueChange={(value) => setEditCustomerForm({ ...editCustomerForm, preferredPaymentMethod: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select payment method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Credit Card">Credit Card</SelectItem>
+                      <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="Check">Check</SelectItem>
+                      <SelectItem value="Cash">Cash</SelectItem>
+                      <SelectItem value="Wire Transfer">Wire Transfer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Notes & Comments */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold border-b pb-2">Notes & Comments</h3>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Services Notes</Label>
+                  <Textarea
+                    value={editCustomerForm.servicesNotes}
+                    onChange={(e) => setEditCustomerForm({ ...editCustomerForm, servicesNotes: e.target.value })}
+                    rows={4}
+                    placeholder="Enter service-related notes..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Comments / Special Instructions</Label>
+                  <Textarea
+                    value={editCustomerForm.comments || editCustomerForm.specialInstructions}
+                    onChange={(e) => setEditCustomerForm({ 
+                      ...editCustomerForm, 
+                      comments: e.target.value,
+                      specialInstructions: e.target.value 
+                    })}
+                    rows={4}
+                    placeholder="Enter any special instructions or comments..."
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <form onSubmit={handleUpdateCustomer}>
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setEditCustomerDialogOpen(false);
+                    setEditCustomerForm({
+                      name: '',
+                      contactPerson: '',
+                      email: '',
+                      phone: '',
+                      location: '',
+                      address: '',
+                      streetAddress: '',
+                      city: '',
+                      state: '',
+                      zip: '',
+                      businessPhone: '',
+                      officePhone: '',
+                      mobile: '',
+                      cellPhone: '',
+                      secondaryEmail: '',
+                      secondaryPhone: '',
+                      website: '',
+                      billingAddress: '',
+                      billingCity: '',
+                      billingState: '',
+                      billingZip: '',
+                      shippingAddress: '',
+                      shippingCity: '',
+                      shippingState: '',
+                      shippingZip: '',
+                      projectContact: '',
+                      contactPhone: '',
+                      contactEmail: '',
+                      paymentTerms: '',
+                      specialTerms: '',
+                      preferredBillingMethod: '',
+                      preferredPaymentMethod: '',
+                      servicesNotes: '',
+                      notes: '',
+                      comments: '',
+                      specialInstructions: '',
+                    });
+                  }}
+                  disabled={editingCustomer}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={editingCustomer || !editCustomerForm.name || !editCustomerForm.email}>
+                  {editingCustomer ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    'Update Customer'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -2477,105 +3617,399 @@ export const CRMModule = () => {
                   <h4 className="font-semibold">{selectedCustomer.name}</h4>
                   <p className="text-sm text-muted-foreground">{selectedCustomer.id}</p>
                 </div>
-                <Button>
+                <Button onClick={() => handleDocumentUpload(selectedCustomer)}>
                   <Upload className="mr-2 h-4 w-4" />
                   Upload New Document
                 </Button>
               </div>
 
               <div className="space-y-3">
-                {selectedCustomer.documents.map((doc: any, idx: number) => (
-                  <div key={idx} className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <FileCheck className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">{doc.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Type: {doc.type} • Uploaded: {doc.uploadDate}
-                          </p>
-                          <p className="text-sm text-muted-foreground">Expiry Date: {doc.expiryDate}</p>
+                {selectedCustomer.documents && selectedCustomer.documents.length > 0 ? (
+                  selectedCustomer.documents.map((doc: any, idx: number) => (
+                    <div key={idx} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <FileCheck className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">{doc.name || 'Unnamed Document'}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Type: {doc.type || 'N/A'} • Uploaded: {doc.uploadDate || doc.upload_date || 'N/A'}
+                            </p>
+                            {doc.expiryDate || doc.expiry_date ? (
+                              <p className="text-sm text-muted-foreground">
+                                Expiry Date: {doc.expiryDate || doc.expiry_date}
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={getStatusBadgeVariant(doc.status || 'pending')}>
+                            {doc.status || 'pending'}
+                          </Badge>
+                          <Button variant="outline" size="sm">
+                            <Download className="mr-2 h-4 w-4" />
+                            Download
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={getStatusBadgeVariant(doc.status)}>{doc.status}</Badge>
-                        <Button variant="outline" size="sm">
-                          <Download className="mr-2 h-4 w-4" />
-                          Download
-                        </Button>
-                      </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileText className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                    <p>No documents found for this customer</p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Convert to Deal Dialog */}
+      {/* Pipeline Details Dialog */}
+      <Dialog open={pipelineDetailsDialogOpen} onOpenChange={setPipelineDetailsDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Sales Pipeline Details</DialogTitle>
+            <DialogDescription>Complete information about this pipeline item</DialogDescription>
+          </DialogHeader>
+          {selectedPipelineItem && (
+            <div className="space-y-6">
+              {/* Customer Information */}
+              <div className="border-b pb-4">
+                <h3 className="text-lg font-semibold mb-3">Customer Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Customer Name</Label>
+                    <p className="font-medium">{selectedPipelineItem.customerName || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Customer ID</Label>
+                    <p className="font-medium">{selectedPipelineItem.customerId || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Enquiry Information */}
+              <div className="border-b pb-4">
+                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  {selectedPipelineItem.enquiryStatus === 'completed' ? (
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  ) : (
+                    <Clock className="h-5 w-5 text-yellow-600" />
+                  )}
+                  Enquiry Information
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Enquiry ID</Label>
+                    <p className="font-medium">{selectedPipelineItem.enquiryId || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Enquiry Date</Label>
+                    <p className="font-medium">{selectedPipelineItem.enquiryDate || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Status</Label>
+                    <Badge variant={selectedPipelineItem.enquiryStatus === 'completed' ? 'default' : 'secondary'}>
+                      {selectedPipelineItem.enquiryStatus || 'N/A'}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quotation Information */}
+              {selectedPipelineItem.quotationId && (
+                <div className="border-b pb-4">
+                  <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                    {selectedPipelineItem.quotationStatus === 'accepted' ? (
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                    ) : selectedPipelineItem.quotationStatus === 'pending' ? (
+                      <Clock className="h-5 w-5 text-yellow-600" />
+                    ) : (
+                      <XCircle className="h-5 w-5 text-red-600" />
+                    )}
+                    Quotation Information
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Quotation ID</Label>
+                      <p className="font-medium">{selectedPipelineItem.quotationId || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Quotation Date</Label>
+                      <p className="font-medium">{selectedPipelineItem.quotationDate || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Quotation Value</Label>
+                      <p className="font-medium">AED {selectedPipelineItem.quotationValue?.toLocaleString() || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Status</Label>
+                      <Badge
+                        variant={
+                          selectedPipelineItem.quotationStatus === 'accepted' ? 'default' :
+                            selectedPipelineItem.quotationStatus === 'pending' ? 'secondary' : 'destructive'
+                        }
+                      >
+                        {selectedPipelineItem.quotationStatus || 'N/A'}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Contract Information */}
+              {selectedPipelineItem.contractId && (
+                <div className="border-b pb-4">
+                  <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                    {selectedPipelineItem.contractStatus === 'completed' || selectedPipelineItem.contractStatus === 'active' ? (
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                    ) : (
+                      <Activity className="h-5 w-5 text-blue-600" />
+                    )}
+                    Contract Information
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Contract ID</Label>
+                      <p className="font-medium">{selectedPipelineItem.contractId || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Contract Date</Label>
+                      <p className="font-medium">{selectedPipelineItem.contractDate || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Contract Value</Label>
+                      <p className="font-medium font-semibold text-lg">
+                        AED {selectedPipelineItem.contractValue?.toLocaleString() || 'N/A'}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Status</Label>
+                      <Badge variant={selectedPipelineItem.contractStatus === 'active' ? 'default' : 'secondary'}>
+                        {selectedPipelineItem.contractStatus || 'N/A'}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Feedback Information */}
+              {selectedPipelineItem.feedbackScore && (
+                <div className="border-b pb-4">
+                  <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                    Feedback Information
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Feedback Score</Label>
+                      <div className="flex items-center gap-2">
+                        <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                        <p className="font-medium text-lg">{selectedPipelineItem.feedbackScore}/5</p>
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Feedback Date</Label>
+                      <p className="font-medium">{selectedPipelineItem.feedbackDate || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Stage and Notes */}
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Current Stage</Label>
+                  <Badge variant={getStatusBadgeVariant(selectedPipelineItem.stage)} className="mt-2">
+                    {selectedPipelineItem.stage || 'N/A'}
+                  </Badge>
+                </div>
+                {selectedPipelineItem.notes && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Notes</Label>
+                    <div className="mt-2 p-3 border rounded-md bg-muted/50">
+                      <p className="text-sm">{selectedPipelineItem.notes}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Upload Document Dialog */}
+      <Dialog open={uploadDocumentDialogOpen} onOpenChange={setUploadDocumentDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Upload Document</DialogTitle>
+            <DialogDescription>Upload a new document for {selectedCustomer?.name || 'this customer'}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Document Type */}
+            <div className="space-y-2">
+              <Label htmlFor="documentType">Document Type <span className="text-red-500">*</span></Label>
+              <Select
+                value={documentForm.documentType}
+                onValueChange={(value) => setDocumentForm({ ...documentForm, documentType: value })}
+              >
+                <SelectTrigger id="documentType">
+                  <SelectValue placeholder="Select document type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="emigration_certificate">Emigration Certificate</SelectItem>
+                  <SelectItem value="passport">Passport</SelectItem>
+                  <SelectItem value="licence">Licence</SelectItem>
+                  <SelectItem value="trade_licence">Trade Licence</SelectItem>
+                  <SelectItem value="visa">Visa</SelectItem>
+                  <SelectItem value="id_card">ID Card</SelectItem>
+                  <SelectItem value="work_permit">Work Permit</SelectItem>
+                  <SelectItem value="company_registration">Company Registration</SelectItem>
+                  <SelectItem value="vat_certificate">VAT Certificate</SelectItem>
+                  <SelectItem value="contract">Contract</SelectItem>
+                  <SelectItem value="agreement">Agreement</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Expiry Date */}
+            <div className="space-y-2">
+              <Label htmlFor="expiryDate">Expiry Date (Optional)</Label>
+              <Input
+                id="expiryDate"
+                type="date"
+                value={documentForm.expiryDate}
+                onChange={(e) => setDocumentForm({ ...documentForm, expiryDate: e.target.value })}
+              />
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2">
+              <Label htmlFor="description">Description (Optional)</Label>
+              <Textarea
+                id="description"
+                placeholder="Enter document description..."
+                value={documentForm.description}
+                onChange={(e) => setDocumentForm({ ...documentForm, description: e.target.value })}
+                rows={3}
+              />
+            </div>
+
+            {/* File Upload */}
+            <div className="space-y-2">
+              <Label htmlFor="file">Document File <span className="text-red-500">*</span></Label>
+              <div className="flex items-center gap-4">
+                <Input
+                  id="file"
+                  type="file"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx"
+                  onChange={handleFileChange}
+                  className="cursor-pointer"
+                />
+              </div>
+              {documentForm.file && (
+                <div className="mt-2 p-3 bg-muted rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">{documentForm.file.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      ({(documentForm.file.size / 1024 / 1024).toFixed(2)} MB)
+                    </span>
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Accepted formats: PDF, DOC, DOCX, JPG, JPEG, PNG, XLS, XLSX (Max 10MB)
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-3 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setUploadDocumentDialogOpen(false);
+                  setDocumentForm({
+                    documentType: '',
+                    expiryDate: '',
+                    description: '',
+                    file: null
+                  });
+                }}
+                disabled={uploadingDocument}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleDocumentSubmit} disabled={uploadingDocument || !documentForm.documentType || !documentForm.file}>
+                {uploadingDocument ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload Document
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Convert to Customer Dialog */}
       <Dialog open={convertToDealDialogOpen} onOpenChange={setConvertToDealDialogOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>Convert to Deal</DialogTitle>
+            <DialogTitle>Convert to Customer</DialogTitle>
             <DialogDescription>
-              While converting you can select existing organization or contact
+              Create a new customer from this lead. Customer details will be populated from the lead information.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-6">
-            {/* Organization */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-muted-foreground" />
-                <Label>Organization</Label>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Choose Existing</span>
-                <Switch checked={chooseExistingOrg} onCheckedChange={setChooseExistingOrg} />
-              </div>
-              {chooseExistingOrg ? (
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select organization" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="adobe">Adobe Inc</SelectItem>
-                    <SelectItem value="bwh">BWH</SelectItem>
-                    <SelectItem value="centered">Centered</SelectItem>
-                    <SelectItem value="circooles">Circooles</SelectItem>
-                    <SelectItem value="figma">Figma</SelectItem>
-                    <SelectItem value="havells">Havells India Ltd.</SelectItem>
-                    <SelectItem value="nike">Nike</SelectItem>
-                  </SelectContent>
-                </Select>
-              ) : (
+          {selectedLead && (
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <div className="p-4 bg-muted rounded-lg">
+                  <h4 className="font-semibold mb-2">Customer Details</h4>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Name:</span>{' '}
+                      <span className="font-medium">{selectedLead.organization || `${selectedLead.firstName} ${selectedLead.lastName}`}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Email:</span>{' '}
+                      <span className="font-medium">{selectedLead.email || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Phone:</span>{' '}
+                      <span className="font-medium">{selectedLead.mobile || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Contact Person:</span>{' '}
+                      <span className="font-medium">{selectedLead.firstName} {selectedLead.lastName}</span>
+                    </div>
+                    {selectedLead.website && (
+                      <div>
+                        <span className="text-muted-foreground">Website:</span>{' '}
+                        <span className="font-medium">{selectedLead.website}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 <p className="text-sm text-muted-foreground">
-                  New organization will be created based on the data in details section
+                  Note: CR Number, VAT Number, Credit Limit, and Deposit Amount can be updated later in customer details.
                 </p>
-              )}
-            </div>
-
-            {/* Contact */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <UserCheck className="h-5 w-5 text-muted-foreground" />
-                <Label>Contact</Label>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Choose Existing</span>
-                <Switch checked={chooseExistingContact} onCheckedChange={setChooseExistingContact} />
-              </div>
-              {!chooseExistingContact && (
-                <p className="text-sm text-muted-foreground">
-                  New contact will be created based on the person's details
-                </p>
-              )}
-            </div>
 
-            <Button onClick={handleConvertToDeal} className="w-full">
-              Convert to deal
-            </Button>
-          </div>
+              <Button onClick={handleConvertToCustomer} className="w-full">
+                Convert to Customer
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -2620,6 +4054,7 @@ export const CRMModule = () => {
                   placeholder="BCC"
                 />
               </div>
+
             </div>
             <div>
               <Label>Message:</Label>
@@ -2801,6 +4236,71 @@ export const CRMModule = () => {
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setNoteDialogOpen(false)}>Cancel</Button>
               <Button onClick={handleCreateNote}>Save Note</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Enquiry Dialog */}
+      <Dialog open={createEnquiryDialogOpen} onOpenChange={setCreateEnquiryDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Enquiry</DialogTitle>
+            <DialogDescription>Create a new customer enquiry for equipment rental</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="enq_customer_name">Customer Name <span className="text-red-500">*</span></Label>
+              <Input id="enq_customer_name" value={enquiryForm.customer_name} onChange={(e) => setEnquiryForm({ ...enquiryForm, customer_name: e.target.value })} placeholder="Enter customer name" required />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="enq_customer_email">Customer Email <span className="text-red-500">*</span></Label>
+              <Input id="enq_customer_email" type="email" value={enquiryForm.customer_email} onChange={(e) => setEnquiryForm({ ...enquiryForm, customer_email: e.target.value })} placeholder="customer@example.com" required />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="enq_equipment">Equipment Name <span className="text-red-500">*</span></Label>
+              <Input id="enq_equipment" value={enquiryForm.equipment_name} onChange={(e) => setEnquiryForm({ ...enquiryForm, equipment_name: e.target.value })} placeholder="e.g., Scaffolding - Steel Frame" required />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="enq_quantity">Quantity <span className="text-red-500">*</span></Label>
+                <Input id="enq_quantity" type="number" min={1} value={enquiryForm.quantity} onChange={(e) => setEnquiryForm({ ...enquiryForm, quantity: parseInt(e.target.value) || 1 })} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="enq_duration">Rental Duration (Days) <span className="text-red-500">*</span></Label>
+                <Input id="enq_duration" type="number" min={1} value={enquiryForm.rental_duration_days} onChange={(e) => setEnquiryForm({ ...enquiryForm, rental_duration_days: parseInt(e.target.value) || 30 })} required />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="enq_location">Delivery Location <span className="text-red-500">*</span></Label>
+              <Input id="enq_location" value={enquiryForm.delivery_location} onChange={(e) => setEnquiryForm({ ...enquiryForm, delivery_location: e.target.value })} placeholder="Enter delivery address" required />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="enq_expected">Expected Delivery Date <span className="text-red-500">*</span></Label>
+              <Input id="enq_expected" type="date" value={enquiryForm.expected_delivery_date} onChange={(e) => setEnquiryForm({ ...enquiryForm, expected_delivery_date: e.target.value })} required />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="enq_notes">Special Instructions</Label>
+              <Textarea id="enq_notes" value={enquiryForm.special_instructions} onChange={(e) => setEnquiryForm({ ...enquiryForm, special_instructions: e.target.value })} placeholder="Any special requirements or instructions..." rows={3} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="enq_owner">Assigned Salesperson (Optional)</Label>
+              <Input id="enq_owner" value={enquiryForm.assigned_salesperson_name} onChange={(e) => setEnquiryForm({ ...enquiryForm, assigned_salesperson_name: e.target.value })} placeholder="Enter salesperson name" />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="outline" onClick={() => setCreateEnquiryDialogOpen(false)} disabled={creatingEnquiry}>Cancel</Button>
+              <Button onClick={handleCreateEnquiry} disabled={creatingEnquiry || !enquiryForm.customer_name || !enquiryForm.customer_email || !enquiryForm.equipment_name || !enquiryForm.delivery_location || !enquiryForm.expected_delivery_date}>
+                {creatingEnquiry ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</> : <><Plus className="h-4 w-4 mr-2" /> Create Enquiry</>}
+              </Button>
             </div>
           </div>
         </DialogContent>

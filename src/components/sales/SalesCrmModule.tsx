@@ -93,25 +93,102 @@ const SalesCrmModule = () => {
   const fetchLeads = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        console.error('No auth token found');
+        setLoading(false);
+        return;
+      }
+
+      console.log('Fetching CRM leads from /api/crm/leads/assigned');
       const response = await fetch('http://localhost:8000/api/crm/leads/assigned', {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
+      console.log('CRM leads response status:', response.status);
+
       if (!response.ok) {
-        throw new Error('Failed to load leads');
+        // Try to get error details from response
+        let errorMessage = `HTTP ${response.status}: Failed to load leads`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorData.message || errorMessage;
+        } catch (e) {
+          // If response is not JSON, try to get text
+          try {
+            const errorText = await response.text();
+            if (errorText) errorMessage = errorText;
+          } catch (e2) {
+            // Ignore text parsing errors
+          }
+        }
+        
+        console.error('API error response:', response.status, errorMessage);
+        
+        // Only show error toast for actual errors, not for empty results
+        if (response.status !== 404) {
+          toast({
+            title: 'Unable to load leads',
+            description: errorMessage,
+            variant: 'destructive',
+          });
+        }
+        setLeads([]);
+        return;
       }
 
       const data = await response.json();
-      setLeads(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Failed to fetch leads:', error);
-      toast({
-        title: 'Unable to load leads',
-        description: 'Please refresh or contact an administrator if the issue persists.',
-        variant: 'destructive',
+      console.log('CRM leads response:', response.status, response.statusText);
+      console.log('CRM leads data received:', Array.isArray(data) ? data.length : 'not an array', 'items');
+      console.log('Raw data type:', typeof data, 'Is array:', Array.isArray(data));
+      
+      // Handle empty array - this is normal, not an error
+      if (!Array.isArray(data)) {
+        console.error('Expected array but got:', typeof data, data);
+        setLeads([]);
+        // Don't show error for empty or invalid response - just set empty leads
+        return;
+      }
+      
+      // Normalize lead structure
+      const normalizedLeads = data.map((lead: any) => {
+        const leadId = lead.lead_id || lead.id || (lead._id ? String(lead._id) : null);
+        return {
+          ...lead,
+          lead_id: leadId,
+          id: leadId,
+          _id: lead._id || lead.id,
+        };
       });
+      
+      console.log('Normalized leads:', normalizedLeads.length);
+      setLeads(normalizedLeads);
+      
+      // Only show toast if we successfully loaded leads and there are some
+      if (normalizedLeads.length > 0) {
+        console.log('Successfully loaded', normalizedLeads.length, 'leads');
+      } else {
+        console.log('No leads found in database (this is normal if no leads have been created yet)');
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch leads:', error);
+      // Only show error for network errors or unexpected exceptions
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        toast({
+          title: 'Connection Error',
+          description: 'Unable to connect to the server. Please check if the backend is running.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Unable to load leads',
+          description: error.message || 'Please refresh or contact an administrator if the issue persists.',
+          variant: 'destructive',
+        });
+      }
+      setLeads([]);
     } finally {
       setLoading(false);
     }
@@ -119,6 +196,35 @@ const SalesCrmModule = () => {
 
   useEffect(() => {
     fetchLeads();
+    
+    // Listen for lead creation/update events from other modules
+    const handleLeadUpdate = () => {
+      console.log('Lead update event detected, refreshing leads...');
+      fetchLeads();
+    };
+    
+    // Listen for custom events that might be dispatched when leads are created
+    window.addEventListener('leadCreated', handleLeadUpdate);
+    window.addEventListener('leadUpdated', handleLeadUpdate);
+    window.addEventListener('refreshLeads', handleLeadUpdate);
+    window.addEventListener('enquiryCreated', handleLeadUpdate); // Enquiries also create leads
+    window.addEventListener('globalRefresh', handleLeadUpdate); // Global refresh from header
+    window.addEventListener('refreshAll', handleLeadUpdate); // Refresh all event
+    
+    // Also set up a periodic refresh (every 30 seconds) to catch any changes
+    const refreshInterval = setInterval(() => {
+      fetchLeads();
+    }, 30000); // Refresh every 30 seconds
+    
+    return () => {
+      window.removeEventListener('leadCreated', handleLeadUpdate);
+      window.removeEventListener('leadUpdated', handleLeadUpdate);
+      window.removeEventListener('refreshLeads', handleLeadUpdate);
+      window.removeEventListener('enquiryCreated', handleLeadUpdate);
+      window.removeEventListener('globalRefresh', handleLeadUpdate);
+      window.removeEventListener('refreshAll', handleLeadUpdate);
+      clearInterval(refreshInterval);
+    };
   }, []);
 
   const statusSummary = useMemo(() => {
@@ -136,11 +242,22 @@ const SalesCrmModule = () => {
   );
 
   const handleStatusChange = async (lead: LeadRecord, status: string) => {
-    if (!lead.lead_id) return;
-    setUpdatingLeadId(lead.lead_id);
+    // Get lead_id from various possible fields
+    const leadId = lead.lead_id || lead.id || lead._id;
+    if (!leadId) {
+      toast({
+        title: 'Error',
+        description: 'Lead ID not found. Please refresh the page.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    setUpdatingLeadId(String(leadId));
 
     try {
-      const response = await fetch(`http://localhost:8000/api/crm/leads/${lead.lead_id}/status`, {
+      console.log('Updating lead status:', leadId, 'to', status);
+      const response = await fetch(`http://localhost:8000/api/crm/leads/${leadId}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -150,31 +267,47 @@ const SalesCrmModule = () => {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || 'Failed to update status');
+        let errorMessage = 'Failed to update status';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorData.message || errorMessage;
+        } catch (e) {
+          try {
+            const errorText = await response.text();
+            if (errorText) errorMessage = errorText;
+          } catch (e2) {
+            // Ignore parsing errors
+          }
+        }
+        throw new Error(errorMessage);
       }
 
+      const result = await response.json();
+      console.log('Status update successful:', result);
+
+      // Update the lead in state - match by any ID field
       setLeads((prev) =>
-        prev.map((item) =>
-          item.lead_id === lead.lead_id
+        prev.map((item) => {
+          const itemId = item.lead_id || item.id || item._id;
+          return String(itemId) === String(leadId)
             ? {
                 ...item,
                 status,
                 updatedAt: new Date().toISOString(),
               }
-            : item,
-        ),
+            : item;
+        }),
       );
 
       toast({
         title: 'Lead updated',
-        description: `${lead.firstName || 'Lead'} marked as ${status}.`,
+        description: `${lead.firstName || lead.email || 'Lead'} marked as ${status}.`,
       });
     } catch (error: any) {
       console.error('Failed to update lead status:', error);
       toast({
         title: 'Status update failed',
-        description: error.message || 'Please try again later.',
+        description: error.message || 'Please refresh the page and try again.',
         variant: 'destructive',
       });
     } finally {
@@ -188,7 +321,9 @@ const SalesCrmModule = () => {
         <div>
           <h3 className="text-2xl font-semibold tracking-tight">Lead Pipeline</h3>
           <p className="text-sm text-muted-foreground">
-            Focus on leads assigned to you and keep the pipeline moving without the admin-heavy views.
+            {leads.length > 0 
+              ? `${leads.length} lead${leads.length !== 1 ? 's' : ''} found. Focus on leads and keep the pipeline moving.`
+              : 'Focus on leads assigned to you and keep the pipeline moving without the admin-heavy views.'}
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={fetchLeads} disabled={loading}>
@@ -260,8 +395,25 @@ const SalesCrmModule = () => {
               ))}
             </div>
           ) : leads.length === 0 ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">
-              No leads yet. Website enquiries will show up here for quicker follow-up.
+            <div className="py-12 text-center">
+              <UserCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <div className="text-sm font-medium mb-2">
+                No leads found
+              </div>
+              <div className="text-xs text-muted-foreground mb-4">
+                {loading 
+                  ? 'Loading leads...' 
+                  : 'Leads created in the CRM module or from website enquiries will appear here. If you just created a lead, it should appear automatically.'}
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={fetchLeads}
+                disabled={loading}
+              >
+                <RefreshCcw className={`h-3 w-3 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                {loading ? 'Refreshing...' : 'Refresh Leads'}
+              </Button>
             </div>
           ) : (
             <ScrollArea className="max-h-[540px]">
@@ -284,11 +436,12 @@ const SalesCrmModule = () => {
                   {leads.map((lead) => {
                     const leadName = [lead.firstName, lead.lastName].filter(Boolean).join(' ') || lead.email || 'Lead';
                     const showStatus = lead.status || 'New';
+                    const leadId = lead.lead_id || lead.id || lead._id || 'unknown';
                     return (
-                      <TableRow key={lead.lead_id || lead.id}>
+                      <TableRow key={leadId}>
                         <TableCell>
                           <div className="font-semibold">{leadName}</div>
-                          <div className="text-xs text-muted-foreground">{lead.lead_id || lead.id || '—'}</div>
+                          <div className="text-xs text-muted-foreground">{leadId}</div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
@@ -332,7 +485,7 @@ const SalesCrmModule = () => {
                             <Select
                               value={showStatus}
                               onValueChange={(value) => handleStatusChange(lead, value)}
-                              disabled={updatingLeadId === lead.lead_id}
+                              disabled={updatingLeadId === String(leadId)}
                             >
                               <SelectTrigger className="w-[150px]">
                                 <SelectValue placeholder="Select status" />

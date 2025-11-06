@@ -7,15 +7,15 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
   ArrowRight,
-  Building2,
-  CheckCircle2,
-  Globe2,
   Loader2,
-  Layers3,
-  LineChart,
-  Network,
-  ShieldCheck,
-  Users,
+  Phone,
+  Mail,
+  MapPin,
+  Menu,
+  X,
+  TrendingUp,
+  Send,
+  CheckCircle2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -55,6 +55,7 @@ const Index = () => {
   const [enquiryForm, setEnquiryForm] = useState<EnquiryFormState>(initialEnquiryState);
   const [isSubmittingEnquiry, setIsSubmittingEnquiry] = useState(false);
   const [enquiryStatus, setEnquiryStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && user && role) {
@@ -107,8 +108,26 @@ const Index = () => {
         throw new Error(errorText || 'Failed to submit enquiry');
       }
 
+      const result = await response.json();
+      console.log('Enquiry submitted successfully:', result);
+
       setEnquiryStatus('success');
       setEnquiryForm(initialEnquiryState);
+      
+      // Dispatch events to notify modules that an enquiry was created
+      // Use a small delay to ensure backend has finished processing
+      setTimeout(() => {
+        console.log('Dispatching refresh events for enquiry and lead...');
+        window.dispatchEvent(new CustomEvent('enquiryCreated', { 
+          detail: { enquiry_id: result?.enquiry_id, lead_id: result?.lead_id } 
+        }));
+        window.dispatchEvent(new CustomEvent('leadCreated', { 
+          detail: { lead_id: result?.lead_id, enquiry_id: result?.enquiry_id } 
+        }));
+        window.dispatchEvent(new CustomEvent('refreshEnquiries'));
+        window.dispatchEvent(new CustomEvent('refreshLeads'));
+      }, 500); // Small delay to ensure backend processing is complete
+      
       toast({
         title: 'Enquiry received',
         description: 'Our team will contact you shortly to discuss your project requirements.',
@@ -126,477 +145,410 @@ const Index = () => {
     }
   };
 
-  const solutionHighlights = [
-    {
-      icon: ShieldCheck,
-      title: 'Govern Every Process',
-      description: 'Configurable workflows covering enquiries, rentals, billing, logistics, and compliance.',
-    },
-    {
-      icon: Network,
-      title: 'Built for Collaboration',
-      description: 'Unify admin, sales, warehouse, finance, and vendor teams with role-based workspaces.',
-    },
-    {
-      icon: LineChart,
-      title: 'Insight-Ready',
-      description: 'Dashboards and analytics revealing utilization, margins, and customer engagement trends.',
-    },
-  ];
-
-  const productSuites = [
-    {
-      title: 'Rental ERP Control Hub',
-      description: 'Plan, dispatch, and monitor every scaffold movement with paperless execution.',
-      capabilities: ['Contract lifecycle orchestration', 'Equipment availability and maintenance', 'Return reconciliation and quality checks'],
-    },
-    {
-      title: 'Sales & CRM Acceleration',
-      description: 'Convert enquiries into profitable contracts while keeping customers informed.',
-      capabilities: ['Lead and enquiry tracking automations', 'Quotation builder with approval tiers', 'Customer portal for status updates'],
-    },
-    {
-      title: 'Finance & Compliance Suite',
-      description: 'Keep cash flow predictable with precise billing, deposits, and penalties.',
-      capabilities: ['Invoice scheduling & collections', 'Penalty & retention management', 'Audit-ready financial exports'],
-    },
-    {
-      title: 'Logistics & Vendor Network',
-      description: 'Coordinate transport, crew, and vendor partners from a single command center.',
-      capabilities: ['Dispatch & pickup orchestration', 'Vendor onboarding & scorecards', 'Field updates from mobile teams'],
-    },
-  ];
-
-  const industries = [
-    'Infrastructure & EPC',
-    'Real Estate Developers',
-    'Oil, Gas & Energy',
-    'Heavy Manufacturing',
-    'Facility Management',
-    'Events & Staging',
-  ];
-
-  const certifications = [
-    {
-      title: 'Security & Reliability',
-      description: 'Enterprise-ready controls protecting operational data and customer trust.',
-    },
-    {
-      title: 'Process Excellence',
-      description: 'Standardized workflows that ensure First-Time-Right execution across teams.',
-    },
-    {
-      title: 'Scalable Architecture',
-      description: 'Cloud-native foundation optimized for multi-location expansion.',
-    },
-  ];
-
-  const testimonials = [
-    {
-      quote:
-        'Our rental planning and finance teams now act on the same source of truth. Turnaround time on approvals dropped by 60%.',
-      name: 'Priya Nair',
-      role: 'Head of Operations, Zenith Rentals',
-    },
-    {
-      quote:
-        'The customer portal and automated notifications cut follow-up calls drastically while improving satisfaction scores.',
-      name: 'Michael Grant',
-      role: 'Sales Director, ConstructAllied',
-    },
-  ];
+  const contactInfo = {
+    phone: '+971 50 123 4567',
+    email: 'info@rigitcontrolhub.com',
+    gmail: 'support.rigit@gmail.com',
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10" aria-hidden="true" />
-        <div className="container relative z-10 mx-auto px-4 py-24 lg:py-32">
-          <div className="max-w-5xl mx-auto text-center space-y-10">
-            <div className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium text-primary">
-              <Building2 className="h-4 w-4" />
-              Unified platform for scaffolding enterprises
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16 lg:h-20">
+            {/* Logo */}
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center">
+                <span className="text-white font-bold text-xl">S</span>
+              </div>
+              <span className="text-xl lg:text-2xl font-bold text-gray-900">Scaffolding Rental Process</span>
             </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight">
-              Paperless rental management that adapts to every project phase
-            </h1>
-            <p className="text-lg sm:text-xl text-muted-foreground max-w-3xl mx-auto">
-              Coordinate enquiries, inventory, logistics, and finance through a single ERP experience. Designed for fast-growing scaffolding and construction service providers who demand agility and compliance.
-            </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Button size="lg" onClick={() => navigate('/auth')}>
+
+            {/* Desktop Navigation - Removed as per request */}
+            
+            <div className="hidden lg:flex items-center gap-4">
+              <Button
+                variant="outline"
+                className="border-primary text-primary hover:bg-primary hover:text-white"
+                onClick={() => navigate('/auth')}
+              >
                 Sign In
               </Button>
-              <Button size="lg" variant="outline" onClick={() => navigate('/auth')}>
-                Request a Demo
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
             </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              {[{ label: 'Locations orchestrated', value: '45+' }, { label: 'Equipment assets managed', value: '12k+' }, { label: 'Approvals automated yearly', value: '9,500+' }].map((stat) => (
-                <div key={stat.label} className="rounded-2xl border bg-card px-6 py-5 text-left shadow-sm">
-                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{stat.label}</p>
-                  <p className="mt-2 text-2xl font-semibold text-primary">{stat.value}</p>
-                </div>
-              ))}
-            </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              className="lg:hidden p-2"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
           </div>
-        </div>
-      </section>
 
-      <section className="container mx-auto px-4 py-16 lg:py-24">
-        <div className="mx-auto max-w-4xl text-center space-y-4 mb-12">
-          <p className="text-sm font-semibold text-primary uppercase tracking-[0.3em]">why teams switch to us</p>
-          <h2 className="text-3xl sm:text-4xl font-bold">Operate faster without compromising control</h2>
-          <p className="text-muted-foreground text-lg">
-            Automate hand-offs, eliminate duplicate data entry, and empower every stakeholder with a workspace tailored to their responsibilities.
-          </p>
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <div className="lg:hidden py-4 border-t border-gray-200">
+              <div className="flex flex-col gap-4">
+                <Button
+                  variant="outline"
+                  className="border-primary text-primary hover:bg-primary hover:text-white"
+                  onClick={() => {
+                    navigate('/auth');
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  Sign In
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {solutionHighlights.map((item) => (
-            <Card key={item.title} className="border-2">
-              <CardHeader>
-                <div className="flex items-center gap-3 text-primary">
-                  <item.icon className="h-6 w-6" />
-                  <CardTitle className="text-xl font-semibold">{item.title}</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <CardDescription>{item.description}</CardDescription>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
+      </header>
 
-      <section className="bg-muted/30">
-        <div className="container mx-auto px-4 py-16 lg:py-24">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between mb-10">
-            <div>
-              <p className="text-sm font-semibold text-primary uppercase tracking-[0.3em]">solution basket</p>
-              <h2 className="text-3xl sm:text-4xl font-bold">Modular suites for every department</h2>
-              <p className="mt-2 max-w-2xl text-muted-foreground text-lg">
-                Deploy one module or the entire platform. Each suite is tightly integrated yet independently impactful, mirroring the flexibility of industry leaders like ACGIL while maintaining your unique brand voice.
+      {/* Hero Section */}
+      <section id="home" className="relative overflow-hidden pt-16 lg:pt-20">
+        {/* Gradient Background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400">
+          <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,.05)_50%,transparent_75%,transparent_100%)] bg-[length:50px_50px] opacity-20"></div>
+        </div>
+
+        <div className="container relative z-10 mx-auto px-4 py-16 lg:py-24">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left Content */}
+            <div className="space-y-8 text-white">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight">
+                Cloud ERP Software For Small And Big Business
+              </h1>
+              <p className="text-lg sm:text-xl text-blue-100 max-w-2xl">
+                Maecena accumsan ocus vella creative fociis voluto ester velit egestas Enim uttorm tellus elementum sagittis.
               </p>
             </div>
-            <Button variant="secondary" size="lg" onClick={() => navigate('/auth')}>
-              Explore the Platform
-            </Button>
-          </div>
-          <div className="grid gap-6 md:grid-cols-2">
-            {productSuites.map((product) => (
-              <Card key={product.title} className="h-full border">
-                <CardHeader>
-                  <CardTitle className="text-2xl flex items-center gap-3">
-                    <Layers3 className="h-6 w-6 text-primary" />
-                    {product.title}
-                  </CardTitle>
-                  <CardDescription className="text-base">{product.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-3 text-sm text-muted-foreground">
-                    {product.capabilities.map((capability) => (
-                      <li key={capability} className="flex items-start gap-2">
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 text-primary" />
-                        <span>{capability}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      <section className="container mx-auto px-4 py-16 lg:py-24">
-        <div className="grid gap-12 lg:grid-cols-[2fr,3fr]">
-          <div className="space-y-4">
-            <p className="text-sm font-semibold text-primary uppercase tracking-[0.3em]">industries served</p>
-            <h2 className="text-3xl sm:text-4xl font-bold">Purpose-built for complex project ecosystems</h2>
-            <p className="text-lg text-muted-foreground">
-              Mirror the adaptability showcased by top ERP vendors while retaining the nuances of scaffolding operations. From heavy construction to events, the platform scales with your delivery pace.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              {industries.map((industry) => (
-                <span key={industry} className="rounded-full border bg-card px-4 py-2 text-sm font-medium shadow-sm">
-                  {industry}
-                </span>
-              ))}
+            {/* Right Content - Laptop Illustration */}
+            <div className="relative">
+              <div className="bg-white rounded-2xl shadow-2xl p-4 transform rotate-3 hover:rotate-0 transition-transform duration-300">
+                <div className="bg-gray-900 rounded-lg p-4">
+                  <div className="flex gap-2 mb-3">
+                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  </div>
+                  <div className="bg-white rounded-lg p-6 space-y-4">
+                    {/* Dashboard Preview */}
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="bg-blue-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-600 mb-1">My Google Chart</p>
+                        <div className="h-16 bg-gradient-to-t from-blue-200 to-blue-100 rounded"></div>
+                      </div>
+                      <div className="bg-green-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-600 mb-1">My Project</p>
+                        <div className="flex items-center justify-center h-16">
+                          <div className="w-16 h-16 rounded-full bg-green-200 flex items-center justify-center">
+                            <span className="text-2xl font-bold text-green-700">75%</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="bg-purple-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-600 mb-1">My Tasks</p>
+                        <p className="text-2xl font-bold text-purple-700">20541</p>
+                      </div>
+                    </div>
+                    <div className="border-t pt-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-semibold text-gray-800">Analytics</span>
+                        <TrendingUp className="h-4 w-4 text-green-600" />
+                      </div>
+                      <div className="h-20 bg-gradient-to-r from-blue-200 via-purple-200 to-pink-200 rounded"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          <Card className="border">
-            <CardHeader className="space-y-2">
-              <div className="flex items-center gap-3 text-primary">
-                <Globe2 className="h-6 w-6" />
-                <CardTitle className="text-2xl">Enterprise-grade governance</CardTitle>
-              </div>
-              <CardDescription className="text-base">
-                Built-in controls for approval hierarchies, audit trails, and vendor compliance give stakeholders total confidence, no matter how distributed your teams are.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-3 text-sm text-muted-foreground">
-                <li className="flex items-start gap-2">
-                  <Users className="mt-0.5 h-4 w-4 text-primary" />
-                  <span>Dedicated workspaces for admin, sales, finance, warehouse, and customer partners.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <ShieldCheck className="mt-0.5 h-4 w-4 text-primary" />
-                  <span>Role-based approvals configured per project type and region.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Network className="mt-0.5 h-4 w-4 text-primary" />
-                  <span>Real-time integrations with inventory and finance services keep data synchronized.</span>
-                </li>
-              </ul>
-            </CardContent>
-          </Card>
         </div>
       </section>
 
-      <section className="bg-card/20">
-        <div className="container mx-auto px-4 py-16 lg:py-24">
-          <div className="grid gap-12 lg:grid-cols-[1.2fr,1fr] items-start">
-            <div className="space-y-6">
-              <p className="text-sm font-semibold text-primary uppercase tracking-[0.3em]">start with an enquiry</p>
-              <h2 className="text-3xl sm:text-4xl font-bold">
-                Prefer to talk to a specialist before signing in?
+      {/* Enquiry Form Section with Contact Info */}
+      <section id="contact" className="py-16 lg:py-24 bg-gradient-to-br from-gray-50 via-blue-50/30 to-gray-50 relative overflow-hidden">
+        {/* Decorative Background Elements */}
+        <div className="absolute top-0 left-0 w-full h-full opacity-5">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500 rounded-full blur-3xl"></div>
+        </div>
+
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Get In Touch
               </h2>
-              <p className="text-lg text-muted-foreground">
-                Share the scope of your scaffolding or construction project and our team will configure the right mix of modules—mirroring the responsive service described by leaders like ACGIL—so you can stay paperless from day one.
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Share your project requirements and our team will get back to you shortly.
               </p>
-              <ul className="space-y-3 text-muted-foreground">
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="mt-1 h-4 w-4 text-primary" />
-                  <span>Fast triage from the sales desk with hand-off to logistics and finance.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="mt-1 h-4 w-4 text-primary" />
-                  <span>Industry-aligned templates for EPC, manufacturing, real estate, and healthcare projects.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="mt-1 h-4 w-4 text-primary" />
-                  <span>Clear next steps within 1 business day, including demo access when required.</span>
-                </li>
-              </ul>
-              <div className="rounded-2xl border bg-background/80 px-6 py-5 text-sm text-muted-foreground">
-                <span className="font-semibold text-primary">Need to follow up later?</span> We’ll email a summary of your request so you can pick up right where you left off.
+            </div>
+
+            <div className="grid lg:grid-cols-[1.2fr,1fr] gap-12 items-start">
+              {/* Contact Information */}
+              <div className="space-y-6">
+                <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-xl border border-white/20">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                    <div className="w-1 h-8 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full"></div>
+                    Contact Information
+                  </h3>
+                  <div className="space-y-4">
+                    <a
+                      href={`tel:${contactInfo.phone.replace(/\s/g, '')}`}
+                      className="flex items-center gap-4 p-4 bg-gradient-to-r from-blue-50 to-blue-100/50 rounded-xl hover:from-blue-100 hover:to-blue-200 transition-all duration-300 group border border-blue-200/50"
+                    >
+                      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform shadow-lg">
+                        <Phone className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-600 mb-1">Phone Number</p>
+                        <p className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                          {contactInfo.phone}
+                        </p>
+                      </div>
+                    </a>
+
+                    <a
+                      href={`mailto:${contactInfo.email}`}
+                      className="flex items-center gap-4 p-4 bg-gradient-to-r from-purple-50 to-purple-100/50 rounded-xl hover:from-purple-100 hover:to-purple-200 transition-all duration-300 group border border-purple-200/50"
+                    >
+                      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform shadow-lg">
+                        <Mail className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-600 mb-1">Business Email</p>
+                        <p className="text-lg font-bold text-gray-900 group-hover:text-purple-600 transition-colors">
+                          {contactInfo.email}
+                        </p>
+                      </div>
+                    </a>
+
+                    <a
+                      href={`mailto:${contactInfo.gmail}`}
+                      className="flex items-center gap-4 p-4 bg-gradient-to-r from-red-50 to-red-100/50 rounded-xl hover:from-red-100 hover:to-red-200 transition-all duration-300 group border border-red-200/50"
+                    >
+                      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform shadow-lg">
+                        <Mail className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-600 mb-1">Gmail</p>
+                        <p className="text-lg font-bold text-gray-900 group-hover:text-red-600 transition-colors">
+                          {contactInfo.gmail}
+                        </p>
+                      </div>
+                    </a>
+
+                    <div className="flex items-start gap-4 p-4 bg-gradient-to-r from-gray-50 to-gray-100/50 rounded-xl border border-gray-200/50">
+                      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center flex-shrink-0 shadow-lg">
+                        <MapPin className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-600 mb-1">Address</p>
+                        <p className="text-lg font-bold text-gray-900">
+                          123 Business Street, Dubai Industrial City, Dubai, UAE
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Enquiry Form - Cool Design */}
+              <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-8 lg:p-10 relative overflow-hidden">
+                {/* Decorative gradient overlay */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl -mr-32 -mt-32"></div>
+                
+                <div className="relative z-10">
+                  <div className="mb-6">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                        <Send className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-2xl font-bold text-gray-900">New Enquiry</h3>
+                        <p className="text-sm text-gray-600">We'll get back to you within 24 hours</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <form className="space-y-4" onSubmit={handleEnquirySubmit}>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="firstName" className="text-gray-700 font-medium">First name *</Label>
+                        <Input
+                          id="firstName"
+                          value={enquiryForm.firstName}
+                          onChange={(event) => handleEnquiryChange('firstName', event.target.value)}
+                          placeholder="Priya"
+                          required
+                          className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-xl h-12 bg-white/80 backdrop-blur-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="lastName" className="text-gray-700 font-medium">Last name</Label>
+                        <Input
+                          id="lastName"
+                          value={enquiryForm.lastName}
+                          onChange={(event) => handleEnquiryChange('lastName', event.target.value)}
+                          placeholder="Nair"
+                          className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-xl h-12 bg-white/80 backdrop-blur-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="email" className="text-gray-700 font-medium">Work email *</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={enquiryForm.email}
+                          onChange={(event) => handleEnquiryChange('email', event.target.value)}
+                          placeholder="you@company.com"
+                          required
+                          className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-xl h-12 bg-white/80 backdrop-blur-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="phone" className="text-gray-700 font-medium">Phone *</Label>
+                        <Input
+                          id="phone"
+                          value={enquiryForm.phone}
+                          onChange={(event) => handleEnquiryChange('phone', event.target.value)}
+                          placeholder="+971 50 123 4567"
+                          required
+                          className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-xl h-12 bg-white/80 backdrop-blur-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="organization" className="text-gray-700 font-medium">Organization</Label>
+                        <Input
+                          id="organization"
+                          value={enquiryForm.organization}
+                          onChange={(event) => handleEnquiryChange('organization', event.target.value)}
+                          placeholder="ABC Construction"
+                          className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-xl h-12 bg-white/80 backdrop-blur-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="location" className="text-gray-700 font-medium">Project location</Label>
+                        <Input
+                          id="location"
+                          value={enquiryForm.location}
+                          onChange={(event) => handleEnquiryChange('location', event.target.value)}
+                          placeholder="Dubai Industrial City"
+                          className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-xl h-12 bg-white/80 backdrop-blur-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="equipmentCategory" className="text-gray-700 font-medium">Equipment need *</Label>
+                        <Input
+                          id="equipmentCategory"
+                          value={enquiryForm.equipmentCategory}
+                          onChange={(event) => handleEnquiryChange('equipmentCategory', event.target.value)}
+                          placeholder="Modular scaffolding"
+                          required
+                          className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-xl h-12 bg-white/80 backdrop-blur-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="equipmentType" className="text-gray-700 font-medium">Specific variant</Label>
+                        <Input
+                          id="equipmentType"
+                          value={enquiryForm.equipmentType}
+                          onChange={(event) => handleEnquiryChange('equipmentType', event.target.value)}
+                          placeholder="Ringlock system"
+                          className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-xl h-12 bg-white/80 backdrop-blur-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="quantity" className="text-gray-700 font-medium">Quantity *</Label>
+                        <Input
+                          id="quantity"
+                          type="number"
+                          min={1}
+                          value={enquiryForm.quantity}
+                          onChange={(event) => handleEnquiryChange('quantity', event.target.value)}
+                          placeholder="100"
+                          required
+                          className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-xl h-12 bg-white/80 backdrop-blur-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="desiredStartDate" className="text-gray-700 font-medium">Desired start date</Label>
+                        <Input
+                          id="desiredStartDate"
+                          type="date"
+                          value={enquiryForm.desiredStartDate}
+                          onChange={(event) => handleEnquiryChange('desiredStartDate', event.target.value)}
+                          className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-xl h-12 bg-white/80 backdrop-blur-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="message" className="text-gray-700 font-medium">Project context</Label>
+                      <Textarea
+                        id="message"
+                        value={enquiryForm.message}
+                        onChange={(event) => handleEnquiryChange('message', event.target.value)}
+                        placeholder="Tell us about schedules, compliance needs, or services you expect."
+                        rows={4}
+                        className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-xl bg-white/80 backdrop-blur-sm resize-none"
+                      />
+                    </div>
+                    {enquiryStatus === 'success' && (
+                      <div className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 flex items-center gap-2">
+                        <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                        <p className="text-sm text-emerald-800 font-medium">
+                          Thanks for reaching out. A specialist will confirm the next steps shortly.
+                        </p>
+                      </div>
+                    )}
+                    <Button
+                      type="submit"
+                      className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 hover:from-blue-700 hover:via-purple-700 hover:to-blue-700 text-white rounded-xl h-14 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50"
+                      disabled={isSubmittingEnquiry}
+                    >
+                      {isSubmittingEnquiry ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                          Sending enquiry...
+                        </span>
+                      ) : (
+                        <span className="flex items-center justify-center gap-2">
+                          <Send className="h-5 w-5" />
+                          Submit Enquiry
+                        </span>
+                      )}
+                    </Button>
+                  </form>
+                </div>
               </div>
             </div>
-            <Card className="border shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-2xl">New Enquiry</CardTitle>
-                <CardDescription>
-                  Tell us about your upcoming requirement. We’ll route it to the right expert and respond quickly.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form className="space-y-5" onSubmit={handleEnquirySubmit}>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">First name *</Label>
-                      <Input
-                        id="firstName"
-                        value={enquiryForm.firstName}
-                        onChange={(event) => handleEnquiryChange('firstName', event.target.value)}
-                        placeholder="Priya"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Last name</Label>
-                      <Input
-                        id="lastName"
-                        value={enquiryForm.lastName}
-                        onChange={(event) => handleEnquiryChange('lastName', event.target.value)}
-                        placeholder="Nair"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Work email *</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={enquiryForm.email}
-                        onChange={(event) => handleEnquiryChange('email', event.target.value)}
-                        placeholder="you@company.com"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Phone *</Label>
-                      <Input
-                        id="phone"
-                        value={enquiryForm.phone}
-                        onChange={(event) => handleEnquiryChange('phone', event.target.value)}
-                        placeholder="+971 50 123 4567"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="organization">Organization</Label>
-                      <Input
-                        id="organization"
-                        value={enquiryForm.organization}
-                        onChange={(event) => handleEnquiryChange('organization', event.target.value)}
-                        placeholder="ABC Construction"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="location">Project location</Label>
-                      <Input
-                        id="location"
-                        value={enquiryForm.location}
-                        onChange={(event) => handleEnquiryChange('location', event.target.value)}
-                        placeholder="Dubai Industrial City"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="equipmentCategory">Equipment need *</Label>
-                      <Input
-                        id="equipmentCategory"
-                        value={enquiryForm.equipmentCategory}
-                        onChange={(event) => handleEnquiryChange('equipmentCategory', event.target.value)}
-                        placeholder="Modular scaffolding"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="equipmentType">Specific variant</Label>
-                      <Input
-                        id="equipmentType"
-                        value={enquiryForm.equipmentType}
-                        onChange={(event) => handleEnquiryChange('equipmentType', event.target.value)}
-                        placeholder="Ringlock system"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="quantity">Quantity *</Label>
-                      <Input
-                        id="quantity"
-                        type="number"
-                        min={1}
-                        value={enquiryForm.quantity}
-                        onChange={(event) => handleEnquiryChange('quantity', event.target.value)}
-                        placeholder="100"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="desiredStartDate">Desired start date</Label>
-                      <Input
-                        id="desiredStartDate"
-                        type="date"
-                        value={enquiryForm.desiredStartDate}
-                        onChange={(event) => handleEnquiryChange('desiredStartDate', event.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="message">Project context</Label>
-                    <Textarea
-                      id="message"
-                      value={enquiryForm.message}
-                      onChange={(event) => handleEnquiryChange('message', event.target.value)}
-                      placeholder="Tell us about schedules, compliance needs, or services you expect."
-                      rows={4}
-                    />
-                  </div>
-                  {enquiryStatus === 'success' && (
-                    <div className="rounded-md border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                      Thanks for reaching out. A specialist will confirm the next steps shortly.
-                    </div>
-                  )}
-                  <Button type="submit" className="w-full" disabled={isSubmittingEnquiry}>
-                    {isSubmittingEnquiry ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Sending enquiry
-                      </span>
-                    ) : (
-                      'Submit enquiry'
-                    )}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </section>
 
-      <section className="bg-muted/30">
-        <div className="container mx-auto px-4 py-16 lg:py-24">
-          <div className="mx-auto max-w-3xl text-center space-y-4 mb-12">
-            <p className="text-sm font-semibold text-primary uppercase tracking-[0.3em]">assurance</p>
-            <h2 className="text-3xl sm:text-4xl font-bold">Certified to protect your operations</h2>
-            <p className="text-lg text-muted-foreground">
-              Align with best-in-class standards for security, quality, and service management inspired by leading ERP providers, so stakeholders know their data and processes are safe.
-            </p>
-          </div>
-          <div className="grid gap-6 md:grid-cols-3">
-            {certifications.map((cert) => (
-              <Card key={cert.title} className="border text-left">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-3 text-xl">
-                    <ShieldCheck className="h-5 w-5 text-primary" />
-                    {cert.title}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-base">{cert.description}</CardDescription>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="container mx-auto px-4 py-16 lg:py-24">
-        <div className="mx-auto max-w-4xl text-center space-y-4 mb-12">
-          <p className="text-sm font-semibold text-primary uppercase tracking-[0.3em]">voices from the field</p>
-          <h2 className="text-3xl sm:text-4xl font-bold">Trusted by teams delivering high-stakes projects</h2>
-          <p className="text-lg text-muted-foreground">
-            Customers leverage the platform to shrink cycle times, reduce overhead, and keep every stakeholder aligned.
-          </p>
-        </div>
-        <div className="grid gap-6 md:grid-cols-2">
-          {testimonials.map((testimonial) => (
-            <Card key={testimonial.name} className="border">
-              <CardHeader>
-                <CardDescription className="text-lg italic">“{testimonial.quote}”</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="font-semibold">{testimonial.name}</p>
-                <p className="text-sm text-muted-foreground">{testimonial.role}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary/80 to-primary/60" aria-hidden="true" />
-        <div className="container relative z-10 mx-auto px-4 py-16 text-center text-primary-foreground">
+      {/* CTA Section */}
+      <section className="relative overflow-hidden bg-gradient-to-r from-primary via-primary/80 to-primary/60">
+        <div className="container relative z-10 mx-auto px-4 py-12 lg:py-16 text-center text-primary-foreground">
           <div className="max-w-3xl mx-auto space-y-6">
-            <h2 className="text-3xl sm:text-4xl font-bold">Launch your connected scaffolding workspace today</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold">Ready to get started?</h2>
             <p className="text-lg sm:text-xl opacity-90">
-              Sign in to access the dashboards you already know, or request a guided tour to see the new experience in action.
+              Sign in to access your dashboard and explore our platform.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <Button size="lg" variant="secondary" onClick={() => navigate('/auth')}>
                 Sign In
-              </Button>
-              <Button size="lg" onClick={() => navigate('/auth')}>
-                Book a Walkthrough
-                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
           </div>

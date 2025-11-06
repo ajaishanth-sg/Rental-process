@@ -23,10 +23,19 @@ security = HTTPBearer()
 async def login(credentials: UserLogin):
     # Support both email and username fields for flexibility
     email = credentials.email or credentials.username
-    email = email.lower() if email else ""
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email or username is required",
+        )
+    email = email.lower().strip()
     password = credentials.password
 
-    # Demo user login removed - only registered users allowed
+    if not password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password is required",
+        )
 
     # Check database for registered users
     db = get_database()

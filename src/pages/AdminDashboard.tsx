@@ -3,10 +3,25 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, Users, FileText, DollarSign, Settings as SettingsIcon, BarChart3, AlertCircle, Calendar, Database, Building, Clipboard, Truck, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Activity, CheckCircle2, Clock, XCircle } from 'lucide-react';
+import {
+  DollarSign,
+  Users,
+  Truck,
+  Building2,
+  CheckCircle2,
+  Activity,
+  Sun,
+  Droplets,
+  Wind,
+  TrendingUp,
+  Clock,
+  XCircle,
+  Package,
+  FileText,
+} from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
-import { EquipmentCatalogModule } from '@/components/admin/EquipmentCatalogModule';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { Badge } from '@/components/ui/badge';
 import { CustomerModule } from '@/components/admin/CustomerModule';
 import { UserManagementModule } from '@/components/admin/UserManagementModule';
 import { EventManagementModule } from '@/components/admin/EventManagementModule';
@@ -14,33 +29,29 @@ import { ReportsModule } from '@/components/admin/ReportsModule';
 import { SettingsModule } from '@/components/admin/SettingsModule';
 import { ContractsModule } from '@/components/admin/ContractsModule';
 import { ContractOversightModule } from '@/components/admin/ContractOversightModule';
-import { InvoicesModule } from '@/components/admin/InvoicesModule';
 import { WorkOrdersModule } from '@/components/admin/WorkOrdersModule';
 import { DispatchModule } from '@/components/admin/DispatchModule';
-import { MasterDataModule } from '@/components/admin/MasterDataModule';
 import { InventoryModule } from '@/components/admin/InventoryModule';
 import { FinanceModule } from '@/components/admin/FinanceModule';
 import { CRMModule } from '@/components/admin/CRMModule';
+import { HRModule } from '@/components/admin/HRModule';
 import { SalesModule } from '@/components/admin/SalesModule';
 
-const StatCard = ({ title, value, icon: Icon, trend, color }: any) => {
-  const isPositive = trend && trend > 0;
-  const TrendIcon = isPositive ? TrendingUp : TrendingDown;
-  
+const StatCard = ({ title, value, icon: Icon, trend, trendText, iconBg }: any) => {
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden hover:shadow-lg transition-shadow">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-        <div className={`p-2 rounded-lg ${color || 'bg-primary/10'}`}>
-          <Icon className={`h-4 w-4 ${color ? 'text-primary' : 'text-primary'}`} />
+        <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide">{title}</CardTitle>
+        <div className={`p-3 rounded-lg ${iconBg || 'bg-green-100'}`}>
+          <Icon className={`h-6 w-6 ${iconBg?.includes('green') ? 'text-green-600' : iconBg?.includes('blue') ? 'text-blue-600' : iconBg?.includes('orange') ? 'text-orange-600' : 'text-gray-600'}`} />
         </div>
       </CardHeader>
       <CardContent>
-        <div className="text-3xl font-bold">{value}</div>
+        <div className="text-4xl font-bold text-gray-900 mb-2">{value}</div>
         {trend !== undefined && (
-          <div className={`flex items-center gap-1 mt-2 text-xs font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-            <TrendIcon className="h-3 w-3" />
-            <span>{Math.abs(trend)}% from last month</span>
+          <div className="flex items-center gap-1 text-sm font-medium text-green-600">
+            <TrendingUp className="h-4 w-4" />
+            <span>{trendText || `+${trend}% vs last month`}</span>
           </div>
         )}
       </CardContent>
@@ -49,28 +60,33 @@ const StatCard = ({ title, value, icon: Icon, trend, color }: any) => {
 };
 
 const AdminDashboard = () => {
-   const { user, role, loading } = useAuth();
-   const navigate = useNavigate();
-   const [activeTab, setActiveTab] = useState('overview');
-   const [stats, setStats] = useState(null);
-   const [loadingStats, setLoadingStats] = useState(true);
+  const { user, role, loading } = useAuth();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('overview');
+  const [stats, setStats] = useState(null);
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [weather, setWeather] = useState({
+    temp: 30,
+    condition: 'Clear sky',
+    location: 'Riyadh الرياض',
+    humidity: 65,
+    wind: 16,
+    country: 'Saudi Arabia',
+  });
 
   useEffect(() => {
-    // Check for hash in URL to set active tab
     const hash = window.location.hash.replace('#', '');
-    if (hash && ['overview', 'crm', 'sales', 'equipment', 'customers', 'users', 'events', 'masterdata', 'contracts', 'contract-oversight', 'inventory', 'finance', 'invoices', 'workorders', 'dispatch', 'reports', 'settings'].includes(hash)) {
+    if (hash && ['overview', 'crm', 'hr', 'sales', 'customers', 'users', 'events', 'contracts', 'contract-oversight', 'inventory', 'finance', 'workorders', 'dispatch', 'reports', 'settings'].includes(hash)) {
       setActiveTab(hash);
     }
 
-    // Listen for custom tab change events from sidebar
     const handleTabChange = (event: any) => {
-      if (event.detail && ['overview', 'crm', 'sales', 'equipment', 'customers', 'users', 'events', 'masterdata', 'contracts', 'contract-oversight', 'inventory', 'finance', 'invoices', 'workorders', 'dispatch', 'reports', 'settings'].includes(event.detail)) {
+      if (event.detail && ['overview', 'crm', 'hr', 'sales', 'customers', 'users', 'events', 'contracts', 'contract-oversight', 'inventory', 'finance', 'workorders', 'dispatch', 'reports', 'settings'].includes(event.detail)) {
         setActiveTab(event.detail);
       }
     };
 
     window.addEventListener('tabChange', handleTabChange);
-
     return () => {
       window.removeEventListener('tabChange', handleTabChange);
     };
@@ -108,7 +124,22 @@ const AdminDashboard = () => {
     }
   }, [user, role]);
 
-  if (loading) {
+  const approvalData = [
+    { name: 'Approved', value: 15, color: '#10b981' },
+    { name: 'Pending', value: 3, color: '#f59e0b' },
+    { name: 'Rejected', value: 1, color: '#ef4444' },
+  ];
+
+  const departments = [
+    { name: 'Sales Operations', status: 'All systems operational', icon: CheckCircle2, color: 'text-green-600' },
+    { name: 'CRM Operations', status: 'All systems operational', icon: CheckCircle2, color: 'text-green-600' },
+    { name: 'Finance Operations', status: 'All systems operational', icon: CheckCircle2, color: 'text-green-600' },
+    { name: 'Warehouse Operations', status: 'All systems operational', icon: CheckCircle2, color: 'text-green-600' },
+    { name: 'Dispatch Operations', status: 'All systems operational', icon: CheckCircle2, color: 'text-green-600' },
+    { name: 'HR Operations', status: 'All systems operational', icon: CheckCircle2, color: 'text-green-600' },
+  ];
+
+  if (loading || loadingStats) {
     return (
       <DashboardLayout role="admin">
         <div className="space-y-6">
@@ -126,283 +157,178 @@ const AdminDashboard = () => {
   return (
     <DashboardLayout role="admin">
       <div className="space-y-6">
-        
-
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard 
-                title="Total Equipment" 
-                value={stats?.totalEquipment || 245} 
-                icon={Package} 
+            {/* Header Section */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
+                <p className="text-gray-600">Welcome back! Here's what's happening today</p>
+              </div>
+              <Badge className="bg-green-500 text-white px-3 py-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                  Live data
+                </div>
+              </Badge>
+            </div>
+
+            {/* Key Metric Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <StatCard
+                title="Total Equipment"
+                value={stats?.totalEquipment || 245}
+                icon={Package}
                 trend={12.5}
-                color="bg-blue-100"
+                trendText="+12.5% vs last month"
+                iconBg="bg-blue-100"
               />
-              <StatCard 
-                title="Active Contracts" 
-                value={stats?.activeContracts || 38} 
-                icon={FileText} 
+              <StatCard
+                title="Active Contracts"
+                value={stats?.activeContracts || 38}
+                icon={FileText}
                 trend={8.2}
-                color="bg-green-100"
+                trendText="+8.2% vs last month"
+                iconBg="bg-green-100"
               />
-              <StatCard 
-                title="Total Customers" 
-                value={stats?.totalCustomers || 156} 
-                icon={Users} 
+              <StatCard
+                title="Total Customers"
+                value={stats?.totalCustomers || 156}
+                icon={Users}
                 trend={15.3}
-                color="bg-purple-100"
+                trendText="+15.3% vs last month"
+                iconBg="bg-purple-100"
               />
-              <StatCard 
-                title="Monthly Revenue" 
+              <StatCard
+                title="Monthly Revenue"
                 value={`AED ${(stats?.monthlyRevenue || 485000).toLocaleString()}`}
-                icon={DollarSign} 
+                icon={DollarSign}
                 trend={22.4}
-                color="bg-orange-100"
+                trendText="+22.4% vs last month"
+                iconBg="bg-orange-100"
               />
             </div>
 
-            {/* Charts Row 1 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Revenue Trend Chart */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Revenue Trend</CardTitle>
-                  <CardDescription>Monthly revenue over the last 6 months</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <AreaChart data={[
-                      { month: 'Aug', revenue: 320000, target: 300000 },
-                      { month: 'Sep', revenue: 350000, target: 320000 },
-                      { month: 'Oct', revenue: 380000, target: 350000 },
-                      { month: 'Nov', revenue: 420000, target: 380000 },
-                      { month: 'Dec', revenue: 450000, target: 400000 },
-                      { month: 'Jan', revenue: 485000, target: 420000 },
-                    ]}>
-                      <defs>
-                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8}/>
-                          <stop offset="95%" stopColor="#8884d8" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip formatter={(value) => `AED ${value.toLocaleString()}`} />
-                      <Legend />
-                      <Area type="monotone" dataKey="revenue" stroke="#8884d8" fillOpacity={1} fill="url(#colorRevenue)" name="Revenue" />
-                      <Line type="monotone" dataKey="target" stroke="#82ca9d" name="Target" strokeDasharray="5 5" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              {/* Contract Status Distribution */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Contract Status Distribution</CardTitle>
-                  <CardDescription>Current contract status breakdown</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={[
-                          { name: 'Active', value: 38, color: '#10b981' },
-                          { name: 'Pending', value: 12, color: '#f59e0b' },
-                          { name: 'Completed', value: 156, color: '#3b82f6' },
-                          { name: 'Expired', value: 8, color: '#ef4444' },
-                        ]}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {[
-                          { name: 'Active', value: 38, color: '#10b981' },
-                          { name: 'Pending', value: 12, color: '#f59e0b' },
-                          { name: 'Completed', value: 156, color: '#3b82f6' },
-                          { name: 'Expired', value: 8, color: '#ef4444' },
-                        ].map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Charts Row 2 */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* Equipment Utilization */}
+            {/* Main Content Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Approval Status Card */}
               <Card className="lg:col-span-2">
                 <CardHeader>
-                  <CardTitle>Equipment Utilization</CardTitle>
-                  <CardDescription>Current equipment status and availability</CardDescription>
+                  <CardTitle className="text-xl font-bold">Approval Status</CardTitle>
+                  <CardDescription>Distribution of approval requests this month</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={[
-                      { category: 'Scaffolding', rented: 85, available: 42, maintenance: 8 },
-                      { category: 'Formwork', rented: 65, available: 28, maintenance: 5 },
-                      { category: 'Shoring', rented: 45, available: 35, maintenance: 3 },
-                      { category: 'Accessories', rented: 120, available: 80, maintenance: 12 },
-                    ]}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="category" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="rented" fill="#10b981" name="Rented" />
-                      <Bar dataKey="available" fill="#3b82f6" name="Available" />
-                      <Bar dataKey="maintenance" fill="#f59e0b" name="Maintenance" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <div className="flex items-center justify-center">
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Pie
+                          data={approvalData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={100}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {approvalData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                        <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="text-3xl font-bold fill-gray-900">
+                          19
+                        </text>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex justify-center gap-6 mt-4">
+                    {approvalData.map((item, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: item.color }}></div>
+                        <span className="text-sm font-medium text-gray-700">
+                          {item.name}: {item.value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
 
-              {/* Quick Stats */}
+              {/* Weather Widget */}
               <Card>
-                <CardHeader>
-                  <CardTitle>Quick Stats</CardTitle>
-                  <CardDescription>Today's overview</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-xl font-bold">Weather</CardTitle>
+                  <Badge className="bg-green-500 text-white text-xs">Live</Badge>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Sun className="h-6 w-6 text-yellow-500" />
                       <div>
-                        <p className="text-sm font-medium">Completed Today</p>
-                        <p className="text-2xl font-bold text-green-600">8</p>
+                        <div className="text-sm font-medium text-gray-600">LOCATION {weather.location}</div>
+                        <div className="text-3xl font-bold text-gray-900">{weather.temp}°C</div>
+                        <div className="text-sm text-gray-600">{weather.condition}</div>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <Activity className="h-5 w-5 text-blue-600" />
-                      <div>
-                        <p className="text-sm font-medium">In Progress</p>
-                        <p className="text-2xl font-bold text-blue-600">38</p>
-                      </div>
+                  <div className="space-y-2 pt-4 border-t">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Droplets className="h-4 w-4 text-blue-500" />
+                      <span className="text-gray-700">Humidity {weather.humidity}%</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Wind className="h-4 w-4 text-gray-500" />
+                      <span className="text-gray-700">Wind {weather.wind} km/h</span>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <Clock className="h-5 w-5 text-orange-600" />
-                      <div>
-                        <p className="text-sm font-medium">Pending</p>
-                        <p className="text-2xl font-bold text-orange-600">12</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <XCircle className="h-5 w-5 text-red-600" />
-                      <div>
-                        <p className="text-sm font-medium">Overdue</p>
-                        <p className="text-2xl font-bold text-red-600">3</p>
-                      </div>
-                    </div>
+                  <div className="pt-2">
+                    <div className="text-xs font-medium text-gray-600 mb-1">CHANGE LOCATION</div>
+                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
+                      <option>{weather.country}</option>
+                    </select>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Recent Activity & Top Customers */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Recent Activity */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Activity</CardTitle>
-                  <CardDescription>Latest updates and events</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {[
-                      { action: 'New Contract Approved', customer: 'ABC Construction LLC', time: '5 minutes ago', type: 'success' },
-                      { action: 'Equipment Dispatched', customer: 'Dubai Builders Co.', time: '23 minutes ago', type: 'info' },
-                      { action: 'Payment Received', customer: 'Elite Construction', time: '1 hour ago', type: 'success' },
-                      { action: 'Quotation Sent', customer: 'Modern Enterprises', time: '2 hours ago', type: 'info' },
-                      { action: 'Equipment Returned', customer: 'Skyline Projects', time: '3 hours ago', type: 'success' },
-                    ].map((activity, idx) => (
-                      <div key={idx} className="flex items-start gap-3 pb-3 border-b last:border-0">
-                        <div className={`p-2 rounded-full ${activity.type === 'success' ? 'bg-green-100' : 'bg-blue-100'}`}>
-                          {activity.type === 'success' ? (
-                            <CheckCircle2 className="h-4 w-4 text-green-600" />
-                          ) : (
-                            <Activity className="h-4 w-4 text-blue-600" />
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium">{activity.action}</p>
-                          <p className="text-xs text-muted-foreground">{activity.customer}</p>
-                          <p className="text-xs text-muted-foreground mt-1">{activity.time}</p>
+            {/* Departmental Overview */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xl font-bold">Departmental Overview</CardTitle>
+                <CardDescription>Current status across all departments</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4 max-h-96 overflow-y-auto">
+                  {departments.map((dept, index) => (
+                    <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <dept.icon className={`h-5 w-5 ${dept.color}`} />
+                        <div>
+                          <div className="font-semibold text-gray-900">{dept.name}</div>
+                          <div className="text-sm text-gray-600">{dept.status}</div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Top Customers */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Top Customers</CardTitle>
-                  <CardDescription>By total contract value</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {[
-                      { name: 'ABC Construction LLC', value: 485000, contracts: 12, growth: 25 },
-                      { name: 'Dubai Builders Co.', value: 425000, contracts: 10, growth: 18 },
-                      { name: 'Elite Construction', value: 380000, contracts: 9, growth: 15 },
-                      { name: 'Modern Enterprises', value: 320000, contracts: 8, growth: 12 },
-                      { name: 'Skyline Projects', value: 285000, contracts: 7, growth: 22 },
-                    ].map((customer, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold text-sm">
-                            {idx + 1}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium">{customer.name}</p>
-                            <p className="text-xs text-muted-foreground">{customer.contracts} contracts</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-bold">AED {customer.value.toLocaleString()}</p>
-                          <div className="flex items-center gap-1 text-xs text-green-600">
-                            <TrendingUp className="h-3 w-3" />
-                            <span>{customer.growth}%</span>
-                          </div>
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
 
         {activeTab === 'crm' && <CRMModule />}
+        {activeTab === 'hr' && <HRModule />}
         {activeTab === 'sales' && <SalesModule />}
-        {activeTab === 'equipment' && <EquipmentCatalogModule />}
         {activeTab === 'customers' && <CustomerModule />}
         {activeTab === 'users' && <UserManagementModule />}
         {activeTab === 'events' && <EventManagementModule />}
-        {activeTab === 'masterdata' && <MasterDataModule />}
         {activeTab === 'contracts' && <ContractsModule />}
         {activeTab === 'contract-oversight' && <ContractOversightModule />}
         {activeTab === 'inventory' && <InventoryModule />}
         {activeTab === 'finance' && <FinanceModule />}
-        {activeTab === 'invoices' && <InvoicesModule />}
         {activeTab === 'workorders' && <WorkOrdersModule />}
         {activeTab === 'dispatch' && <DispatchModule />}
         {activeTab === 'reports' && <ReportsModule />}

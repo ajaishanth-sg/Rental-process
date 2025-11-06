@@ -10,6 +10,10 @@ router = APIRouter()
 async def get_finance_dashboard(current_user: dict = Depends(get_current_user)):
     """Get finance dashboard data"""
     try:
+        # Check if user is admin
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Access denied. Admin role required.")
+
         db = get_database()
 
         # Get total revenue from invoices
@@ -70,6 +74,9 @@ async def get_finance_dashboard(current_user: dict = Depends(get_current_user)):
 async def get_finance_invoices(current_user: dict = Depends(get_current_user)):
     """Get invoices for finance"""
     try:
+        # Check if user is admin
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Access denied. Admin role required.")
         db = get_database()
 
         # Query from invoices collection
@@ -90,10 +97,21 @@ async def get_finance_invoices(current_user: dict = Depends(get_current_user)):
 async def get_finance_payments(current_user: dict = Depends(get_current_user)):
     """Get payments for finance"""
     try:
+        # Check if user is admin
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Access denied. Admin role required.")
         db = get_database()
 
-        # TODO: Query from payments collection
-        return []
+        # Query from payments collection
+        payments_cursor = db.payments.find({})
+        payments_raw = await payments_cursor.to_list(length=None)
+        payments = []
+        for payment in payments_raw:
+            payment_copy = payment.copy()
+            payment_copy["id"] = str(payment_copy.pop("_id"))
+            payments.append(payment_copy)
+
+        return payments
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching payments: {str(e)}")
@@ -102,10 +120,21 @@ async def get_finance_payments(current_user: dict = Depends(get_current_user)):
 async def get_finance_deposits(current_user: dict = Depends(get_current_user)):
     """Get deposits for finance"""
     try:
+        # Check if user is admin
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Access denied. Admin role required.")
         db = get_database()
 
-        # TODO: Query from deposits collection
-        return []
+        # Query from deposits collection
+        deposits_cursor = db.deposits.find({})
+        deposits_raw = await deposits_cursor.to_list(length=None)
+        deposits = []
+        for deposit in deposits_raw:
+            deposit_copy = deposit.copy()
+            deposit_copy["id"] = str(deposit_copy.pop("_id"))
+            deposits.append(deposit_copy)
+
+        return deposits
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching deposits: {str(e)}")
@@ -115,6 +144,9 @@ async def get_finance_deposits(current_user: dict = Depends(get_current_user)):
 async def get_finance_approvals(current_user: dict = Depends(get_current_user)):
     """Get pending approvals for finance"""
     try:
+        # Check if user is admin
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Access denied. Admin role required.")
         db = get_database()
 
         # Get pending rental approvals
@@ -142,6 +174,9 @@ async def get_finance_approvals(current_user: dict = Depends(get_current_user)):
 async def get_finance_reports(current_user: dict = Depends(get_current_user)):
     """Get finance reports"""
     try:
+        # Check if user is admin
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Access denied. Admin role required.")
         db = get_database()
 
         # TODO: Implement proper reporting queries
