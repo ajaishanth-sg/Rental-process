@@ -47,3 +47,6 @@ wheels/
 
 # Backend uploads
 backend/uploads/
+
+# Bun lockfile (use npm/package-lock.json instead)
+bun.lockb
