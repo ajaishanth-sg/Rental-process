@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import API_CONFIG from '@/config/api';
 
 interface User {
   id: string;
@@ -42,7 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (email: string, password: string) => {
     try {
       // Backend authentication only - admin-created users required
-      const response = await fetch('http://localhost:8000/api/auth/login', {
+      const response = await fetch(API_CONFIG.AUTH.LOGIN, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -70,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       
       try {
-        const userResponse = await fetch('http://localhost:8000/api/auth/me', {
+        const userResponse = await fetch(API_CONFIG.AUTH.ME, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },

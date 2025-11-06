@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import API_CONFIG from '@/config/api';
 
 type EnquiryFormState = {
   firstName: string;
@@ -97,7 +98,7 @@ const Index = () => {
     };
 
     try {
-      const response = await fetch('http://localhost:8000/api/crm/leads/public', {
+      const response = await fetch(API_CONFIG.CRM.LEADS_PUBLIC, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

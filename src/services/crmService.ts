@@ -1,5 +1,6 @@
 // CRM API Service
-const API_BASE_URL = 'http://localhost:8000/api/crm';
+import API_CONFIG from '@/config/api';
+const API_BASE_URL = API_CONFIG.CRM.BASE;
 
 const getAuthHeaders = () => ({
   'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,

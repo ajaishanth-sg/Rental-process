@@ -2,7 +2,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.database import Database
 import os
 
-MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017/rigit-control-hub")
+MONGODB_URL = os.getenv("MONGODB_URI", os.getenv("MONGODB_URL", "mongodb://localhost:27017/rigit-control-hub"))
 
 client: AsyncIOMotorClient = None
 database: Database = None

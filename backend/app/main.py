@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .routers import auth, rentals, invoices, customers, returns, support, reports, equipment, admin, events, uom, rates, currencies, vat, contracts, warehouse, finance, sales, crm, hr
 from .utils.database import connect_to_mongo, close_mongo_connection
 from .utils.seed_data import seed_demo_data
+import os
 
 app = FastAPI(
     title="Rigit Control Hub API",
@@ -10,10 +11,26 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Configure CORS - Allow all localhost origins for development
+# Configure CORS - Support both development and production
+environment = os.getenv("ENVIRONMENT", "development")
+frontend_url = os.getenv("FRONTEND_URL", "")
+
+if environment == "production" and frontend_url:
+    # Production: Allow specific frontend URL
+    allowed_origins = [frontend_url]
+else:
+    # Development: Allow localhost and common development origins
+    allowed_origins = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?",
+    allow_origins=allowed_origins if environment == "production" else ["*"],
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?" if environment != "production" else None,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
